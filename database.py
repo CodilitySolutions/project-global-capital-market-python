@@ -36,7 +36,7 @@ class Database:
 
     def read_user_data(self):
         query="""select accountid, country, city, address from report.vtiger_account a 
-            where client_qualification_date>'2024-01-01 00:00:01';
+            where country IN ('South Africa', 'Nigeria') AND address='ugbuwangue' AND client_qualification_date>'2024-01-01 00:00:01';
         """
         # and not exists (select 1 from [dbo].[client_location_cost] b WHERE a.accountid = b.accountid);
 
@@ -102,7 +102,6 @@ class Database:
 
         cursor.close()
 
-
     def update_neighborhood_data(self, data):
         cursor = self.conn.cursor()
 
@@ -112,7 +111,7 @@ class Database:
         cursor.close()
 
         print("Neighborhood updated")
-    
+
     def update_cost_data(self, data):
         cursor = self.conn.cursor()
         query = f"UPDATE [dbo].[client_location_cost] SET neighborhood_cost_sqm='{data[0][1]}', street_cost_sqm='{data[0][2]}', build_cost_sqm='{data[0][3]}', image_people_type='{data[0][4]}', street_people_type='{data[0][5]}', neighbourhood_people_type='{data[0][6]}' WHERE accountid = {data[0][0]};"
@@ -121,7 +120,7 @@ class Database:
         cursor.close()
 
         print("Client updated")
-    
+
     def read_cost_data(self):
         # query = """SELECT COUNT(*) AS TOTAL FROM [dbo].[client_location_cost]"""
         # query = """SELECT * FROM [dbo].[client_location_cost]"""
@@ -137,7 +136,6 @@ class Database:
         #     print('record: ', record["street_people_type"], record["area_type"], record["is_valid"])
 
         return records
-
 
     def remove_duplicate_records(self):
         query = """SELECT accountid, COUNT(*) AS RecordCount FROM [dbo].[client_location_cost] GROUP BY accountid;"""
