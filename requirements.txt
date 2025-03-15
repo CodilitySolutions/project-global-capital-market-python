@@ -1,0 +1,10 @@
+python-dotenv==1.0.1
+openai==1.63.0
+pymssql==2.3.2
+pillow==11.1.0
+requests==2.32.3
+
+pydub==0.25.1
+SpeechRecognition==3.14.1
+transformers==4.49.0
+pyannote.audio==3.3.2
