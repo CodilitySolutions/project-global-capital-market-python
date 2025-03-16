@@ -35,8 +35,9 @@ class Database:
             print("Error:", e)
 
     def read_user_data(self):
-        query="""select accountid, country, city, address from report.vtiger_account a 
-            where country IN ('South Africa', 'Nigeria') AND address='ugbuwangue' AND client_qualification_date>'2024-01-01 00:00:01';
+        query = """SELECT accountid, country, city, address 
+            FROM report.vtiger_account a 
+            WHERE country IN ('South Africa', 'Nigeria') AND address='ogoja road Abakaliki' AND client_qualification_date>'2024-01-01 00:00:01';
         """
         # and not exists (select 1 from [dbo].[client_location_cost] b WHERE a.accountid = b.accountid);
 
@@ -46,6 +47,15 @@ class Database:
         records = cursor.fetchall()
         print("Client records: ", len(records))
         return records
+    
+    def read_property_sites_data(self, country, city, address):
+        query = "SELECT STRING_AGG(property_sites.property_url, ' ') AS property_urls FROM dbo.property_sites WHERE country = %s"
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, country)
+
+        records = cursor.fetchall()
+        return records[0]['property_urls']
 
     def read_client(self, accountid):
         query = "SELECT * FROM report.vtiger_account WHERE accountid = %s"
