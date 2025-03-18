@@ -1,26 +1,31 @@
 import os
 import openai
-from openai import OpenAI
 import json
 from database import Database
 import httpx
 from PIL import Image
 from io import BytesIO
+import requests
+from serpapi import GoogleSearch
+import os
 
 import base64
 import asyncio
 
 from dotenv import load_dotenv
+from pyppeteer import launch
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, "dot.env"))
 
 
+SERP_API_KEY = os.getenv("SERP_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 CHATGPT_MODEL = os.getenv("CHATGPT_MODEL")
 GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 
-client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+# client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 async def get_openai_response(prompt):
     result=""
@@ -190,43 +195,100 @@ async def analyse_location_image(address):
 
 
 async def get_heuristic_cost(country, city, address):
-    # sources_prompt = f"Search Flat / Apartment, House or Commercial properties in {country} having City {city} and address {address}. \nFind mean per square meter price for sale. Use sources {sources}. \nIf size of the house or flat is not available, then use 120 square meters for a 3-bedroom house/flat, 185 square meters for a 4-bedroom house/flat, and so on as an assumption. Price should be in USD by taking conversion rate from xe.com. \nReturn the JSON formatted with {{}} and don't wrap with ```json."
-    sources_prompt = f"""
-Based on historical market trends and general real estate knowledge, 
-estimate the average per square meter price for properties in {city}, {country}, specifically at {address}. 
-Do not use real-time data, external sources, or current listings. 
 
-Categorize the given location into one of these groups based on general trends 
-and provide an estimated price per square meter.
+    # Step 1: Fetch Results from SERP API
+    print("\n🔍 Fetching results from SERP API...")
+    db = Database()
+    sources = db.read_property_sites_data(country, city, address)
+    
+    if sources:
+        print("sources", sources)
 
-Assume a fixed exchange rate of 1 USD = 800 NGN (or any latest available conversion rate from xe.com). 
-If needed, convert local prices into USD using this rate.
+    params = {
+        "engine": "google",
+        "q": f"Find property for sale in {country} having City {city}, address {address}",
+        "api_key": SERP_API_KEY,
+    }
 
-Price should be in USD by taking the given conversion rate into account.
+    print(f"params = {params}")
 
-Return the JSON formatted with {{"price": estimated_value, "address": "{address}"}} and don't wrap with ```json.
-"""
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    organic_results = results.get("organic_results", [])
 
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    # client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
-    response = await client.responses.create(
-        model="gpt-4-turbo",
-        tools=[{ "type": "web_search_preview" }],
-        input=sources_prompt
-    )
+    # Extracting links from organic_results
+    links = [result["link"] for result in organic_results]
 
-    print("sources response", response)
+    if links:
+        print("✅ SERP API Results:")
+        for i, link in enumerate(links):
+            print(f"{i + 1}. {link}")
 
-    # if type(response) != "json":
-    #     try:
-    #         response = json.loads(response.choices[0].message.content)
-    #     except:
-    #         response = {"price": 0}
+        # Step 2: Fetch HTML Content from each link
+        html_data = ""
 
-    # price = response.get("price", 0)
-    # try:
-    #     return float(price)
-    # except:
+        async def fetch_html(url):
+            browser = await launch()
+            page = await browser.newPage()
+            await page.goto(url)
+            page.waitForResponse(30000)
+            content = await page.content()
+            await browser.close()
+            return content
+
+        for i, link_url in enumerate(links):
+            print(f"\n🌍 Fetching HTML content from: {link_url}")
+            
+            try:
+                html_data = await fetch_html(link_url)
+                print(f"✅ HTML content fetched successfully from link {i + 1}.")
+                
+                # Save the HTML content to a file
+                with open(f"scraped.html", "w", encoding="utf-8") as file:
+                    file.write(html_data)
+                print(f"📂 HTML content saved to scraped.html")
+                break  # Exit loop after successfully fetching content
+            except Exception as e:
+                print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
+                html_data = ""
+            print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
+            html_data = ""
+    else:
+        print("❌ No links found.")
+        html_data = ""
+
+    # Step 3: Process HTML with OpenAI API
+    if html_data:
+        print("\n🤖 Processing HTML content with OpenAI API...")
+        
+        # Read the saved file content
+        with open("scraped.html", "r", encoding="utf-8") as file:
+            html_content = file.read()
+        
+        # client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        
+        prompt = f"""
+        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Provide square meters also provide me details Url.
+        Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
+        "title", "description", "price", "square_meter","details_url".  
+
+        HTML Content (trimmed for token limit):
+        {html_content[:100000]}
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in property analysis and pricing."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800
+        )
+        
+        json_response = response.choices[0].message.content
+        print("\n📊 OpenAI Response:\n", json_response)
+    else:
+        print("❌ No HTML content to process.")   
     return 0
 
 
