@@ -194,6 +194,46 @@ async def analyse_location_image(address):
     return response, is_valid
 
 
+async def fetch_html(url):
+    browser = await launch()
+    page = await browser.newPage()
+    await page.goto(url)
+    # await page.waitForResponse()
+    content = await page.content()
+    await browser.close()
+    return content
+
+async def fetch_openAI_results(filename):
+    # Read the saved file content
+    with open(filename, "r", encoding="utf-8") as file:
+        html_data = file.read()
+    if html_data:
+        print("\n🤖 Processing HTML content with OpenAI API...")
+        
+        prompt = f"""
+        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Provide square meters also provide me details Url.
+        Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
+        "title", "description", "price", "square_meter","details_url".  
+
+        HTML Content (trimmed for token limit):
+        {html_data[:100000]}
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in property analysis and pricing."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800
+        )
+        
+        json_response = response.choices[0].message.content
+        print("\n📊 OpenAI Response:\n", json_response)
+    else:
+        print("❌ No HTML content to process.")   
+    return 0
+
 async def get_heuristic_cost(country, city, address):
 
     # Step 1: Fetch Results from SERP API
@@ -227,14 +267,6 @@ async def get_heuristic_cost(country, city, address):
         # Step 2: Fetch HTML Content from each link
         html_data = ""
 
-        async def fetch_html(url):
-            browser = await launch()
-            page = await browser.newPage()
-            await page.goto(url)
-            page.waitForResponse(30000)
-            content = await page.content()
-            await browser.close()
-            return content
 
         for i, link_url in enumerate(links):
             print(f"\n🌍 Fetching HTML content from: {link_url}")
@@ -244,51 +276,20 @@ async def get_heuristic_cost(country, city, address):
                 print(f"✅ HTML content fetched successfully from link {i + 1}.")
                 
                 # Save the HTML content to a file
-                with open(f"scraped.html", "w", encoding="utf-8") as file:
+                with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                     file.write(html_data)
-                print(f"📂 HTML content saved to scraped.html")
-                break  # Exit loop after successfully fetching content
+                print(f"📂 HTML content saved to scraped_{i + 1}.html")
+                await fetch_openAI_results(f"scraped_{i + 1}.html")
+                # break
             except Exception as e:
                 print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
                 html_data = ""
-            print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
-            html_data = ""
     else:
         print("❌ No links found.")
         html_data = ""
 
     # Step 3: Process HTML with OpenAI API
-    if html_data:
-        print("\n🤖 Processing HTML content with OpenAI API...")
-        
-        # Read the saved file content
-        with open("scraped.html", "r", encoding="utf-8") as file:
-            html_content = file.read()
-        
-        # client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        
-        prompt = f"""
-        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Provide square meters also provide me details Url.
-        Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
-        "title", "description", "price", "square_meter","details_url".  
-
-        HTML Content (trimmed for token limit):
-        {html_content[:100000]}
-        """
-        
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are an expert in property analysis and pricing."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=800
-        )
-        
-        json_response = response.choices[0].message.content
-        print("\n📊 OpenAI Response:\n", json_response)
-    else:
-        print("❌ No HTML content to process.")   
+ 
     return 0
 
 
