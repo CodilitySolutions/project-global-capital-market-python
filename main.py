@@ -13,7 +13,6 @@ import base64
 import asyncio
 
 from dotenv import load_dotenv
-from pyppeteer import launch
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, "dot.env"))
@@ -195,13 +194,14 @@ async def analyse_location_image(address):
 
 
 async def fetch_html(url):
-    browser = await launch()
-    page = await browser.newPage()
-    await page.goto(url)
-    # await page.waitForResponse()
-    content = await page.content()
-    await browser.close()
-    return content
+    try:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        response.raise_for_status()  # Raise error for failed requests (4xx, 5xx)
+        return response.text  # Return the HTML content
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching HTML from {url}: {e}")
+        return None  # Return None if request fails
+
 
 async def fetch_openAI_results(filename):
     # Read the saved file content
@@ -232,7 +232,44 @@ async def fetch_openAI_results(filename):
         print("\n📊 OpenAI Response:\n", json_response)
     else:
         print("❌ No HTML content to process.")   
-    return 0
+    return json_response
+
+async def get_average_price_square_per_meter(scaped_responses):
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'square_meter': 'area of property ', 'details_url': 'details page link of property',  } format only.\n Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+
+    # response = await get_openai_response(average_prompt)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": average_prompt,
+                    }
+                ],
+            }
+        ],
+    )
+
+    response = response.choices[0].message.content
+
+    if type(response) != "json":
+        try:
+            response = json.loads(response.replace("'", "\""))
+            is_valid = True
+            print('Data: ', response)
+        except:
+            print("Failed to get average price response")
+    if type(response) != "json":
+        try:
+            response = json.loads(response.replace("'", "\""))
+            print('response: ', response)
+        except:
+            response = {"average": ""}
+
+    return response.get("average", "")
 
 async def get_heuristic_cost(country, city, address):
 
@@ -267,6 +304,8 @@ async def get_heuristic_cost(country, city, address):
         # Step 2: Fetch HTML Content from each link
         html_data = ""
 
+        opneAI_response = ""
+
 
         for i, link_url in enumerate(links):
             print(f"\n🌍 Fetching HTML content from: {link_url}")
@@ -279,11 +318,15 @@ async def get_heuristic_cost(country, city, address):
                 with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                     file.write(html_data)
                 print(f"📂 HTML content saved to scraped_{i + 1}.html")
-                await fetch_openAI_results(f"scraped_{i + 1}.html")
+                opneAI_response += await fetch_openAI_results(f"scraped_{i + 1}.html")
                 # break
             except Exception as e:
                 print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
                 html_data = ""
+        
+        # Step 3: Process opneAI_response with OpenAI API
+        average_cost = await get_average_price_square_per_meter(opneAI_response)
+        print('average_cost returned: ', average_cost)
     else:
         print("❌ No links found.")
         html_data = ""
@@ -365,5 +408,12 @@ async def calculate_cost():
 
 
 if __name__ == "__main__":
-    asyncio.run(calculate_cost())
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(calculate_cost())
+    finally:
+        loop.run_until_complete(asyncio.sleep(1))  # Give time for cleanup
+        loop.run_until_complete(loop.shutdown_asyncgens())  # Force shutdown of pending async generators
+        loop.close()
+
 
