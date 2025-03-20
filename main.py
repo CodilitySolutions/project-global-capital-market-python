@@ -211,9 +211,9 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         print("\n🤖 Processing HTML content with OpenAI API...")
         
         prompt = f"""
-        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters also provide me details Url.
+        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use description to guess area in square meters using hueristics, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
         Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
-        "title", "description", "price", "price_in_USD", "square_meter","details_url".  
+        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter" ,"details_url".  
 
         HTML Content (trimmed for token limit):
         {html_data[:100000]}
@@ -235,7 +235,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
     return json_response
 
 async def get_average_price_square_per_meter(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'area of property ', 'details_url': 'details page link of property',  } format only.\n Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json and return it encapsulated in data {} object of whole json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'area of property ', 'details_url': 'details page link of property',  } format only.\n Also Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
 
     # response = await get_openai_response(average_prompt)
     response = client.chat.completions.create(
@@ -253,17 +253,15 @@ async def get_average_price_square_per_meter(scaped_responses):
         ],
     )
 
-    response = response.choices[0].message.content
+    response_text = response.choices[0].message.content
 
-    if type(response) != "json":
-        try:
-            response = json.loads(response.replace("'", "\""))
-            is_valid = True
-            print('Data: ', response)
-        except:
-            print("Failed to get average price response")
-
-    return response.get("average", "")
+    try:
+        response_json = json.loads(response_text.replace("'", "\""))  # Convert string to JSON
+        print('Parsed Data: ', response_json)
+        return response_json.get("average", "")  # Now safely use .get()
+    except json.JSONDecodeError:
+        print("Failed to parse OpenAI response as JSON. Raw response:", response_text)
+    return ""
 
 async def get_heuristic_cost(country, city, address):
 
@@ -281,7 +279,7 @@ async def get_heuristic_cost(country, city, address):
         "api_key": SERP_API_KEY,
     }
 
-    print(f"params = {params}")
+    # print(f"params = {params}")
 
     search = GoogleSearch(params)
     results = search.get_dict()
@@ -296,12 +294,12 @@ async def get_heuristic_cost(country, city, address):
         "api_key": SERP_API_KEY,
     }
 
-    print(f"params = {params}")
+    # print(f"params = {params}")
 
     search1 = GoogleSearch(params)
     results1 = search1.get_dict()
     organic_results1 = results1.get("organic_results", [])
-    print("organic_results1: ", organic_results1)
+    # print("organic_results1: ", organic_results1)
     wise_snippets = [result['snippet_highlighted_words'] for result in organic_results1 if result.get('source') == 'Wise']
 
     print("Snippets from Wise:------------", wise_snippets[0])
@@ -342,6 +340,11 @@ async def get_heuristic_cost(country, city, address):
         print('opneAI_response: ', opneAI_response)
         average_cost = await get_average_price_square_per_meter(opneAI_response)
         print('average_cost returned: ', average_cost)
+
+        if average_cost not in ['', 0]:
+            return average_cost
+
+        return 0
     else:
         print("❌ No links found.")
         html_data = ""
@@ -417,6 +420,8 @@ async def calculate_cost():
 
             data.append((accountid, cost, 1))
             db.insert_cost(data)
+
+        await asyncio.sleep(5)  # Sleep for 1 second after each iteration
 
 
     db.read_cost_data()

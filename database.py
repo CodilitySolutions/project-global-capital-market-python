@@ -35,9 +35,9 @@ class Database:
             print("Error:", e)
 
     def read_user_data(self):
-        query = """SELECT accountid, country, city, address 
+        query = """SELECT TOP 20 accountid, country, city, address 
             FROM report.vtiger_account a 
-            WHERE country IN ('South Africa', 'Nigeria') AND address='ogoja road Abakaliki' AND client_qualification_date>'2024-01-01 00:00:01';
+            WHERE country IN ('South Africa', 'Nigeria') AND client_qualification_date>'2024-01-01 00:00:01';
         """
         # and not exists (select 1 from [dbo].[client_location_cost] b WHERE a.accountid = b.accountid);
 
@@ -128,6 +128,7 @@ class Database:
                     modified_date=GETDATE()
                 WHERE accountid = {data[0][0]};
             """
+            print('query: ', query)
             cursor.execute(query)
             self.conn.commit()
             print("Cost updated")
