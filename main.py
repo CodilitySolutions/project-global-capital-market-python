@@ -203,7 +203,7 @@ async def fetch_html(url):
         return None  # Return None if request fails
 
 
-async def fetch_openAI_results(filename):
+async def fetch_openAI_results(filename, covert_price_to_dollar):
     # Read the saved file content
     with open(filename, "r", encoding="utf-8") as file:
         html_data = file.read()
@@ -211,9 +211,9 @@ async def fetch_openAI_results(filename):
         print("\n🤖 Processing HTML content with OpenAI API...")
         
         prompt = f"""
-        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Provide square meters also provide me details Url.
+        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters also provide me details Url.
         Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
-        "title", "description", "price", "square_meter","details_url".  
+        "title", "description", "price", "price_in_USD", "square_meter","details_url".  
 
         HTML Content (trimmed for token limit):
         {html_data[:100000]}
@@ -229,13 +229,13 @@ async def fetch_openAI_results(filename):
         )
         
         json_response = response.choices[0].message.content
-        print("\n📊 OpenAI Response:\n", json_response)
+        #   sprint("\n📊 OpenAI Response:\n", json_response)
     else:
         print("❌ No HTML content to process.")   
     return json_response
 
 async def get_average_price_square_per_meter(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'square_meter': 'area of property ', 'details_url': 'details page link of property',  } format only.\n Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'area of property ', 'details_url': 'details page link of property',  } format only.\n Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
 
     # response = await get_openai_response(average_prompt)
     response = client.chat.completions.create(
@@ -262,12 +262,6 @@ async def get_average_price_square_per_meter(scaped_responses):
             print('Data: ', response)
         except:
             print("Failed to get average price response")
-    if type(response) != "json":
-        try:
-            response = json.loads(response.replace("'", "\""))
-            print('response: ', response)
-        except:
-            response = {"average": ""}
 
     return response.get("average", "")
 
@@ -296,6 +290,26 @@ async def get_heuristic_cost(country, city, address):
     # Extracting links from organic_results
     links = [result["link"] for result in organic_results]
 
+    params = {
+        "engine": "google",
+        "q": f"1 {country} currency in USD",
+        "api_key": SERP_API_KEY,
+    }
+
+    print(f"params = {params}")
+
+    search1 = GoogleSearch(params)
+    results1 = search1.get_dict()
+    organic_results1 = results1.get("organic_results", [])
+    print("organic_results1: ", organic_results1)
+    wise_snippets = [result['snippet_highlighted_words'] for result in organic_results1 if result.get('source') == 'Wise']
+
+    print("Snippets from Wise:------------", wise_snippets[0])
+    # return 0
+
+    # Extracting links from organic_results
+    # links = [result["link"] for result in organic_results]
+
     if links:
         print("✅ SERP API Results:")
         for i, link in enumerate(links):
@@ -318,13 +332,14 @@ async def get_heuristic_cost(country, city, address):
                 with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                     file.write(html_data)
                 print(f"📂 HTML content saved to scraped_{i + 1}.html")
-                opneAI_response += await fetch_openAI_results(f"scraped_{i + 1}.html")
+                opneAI_response += await fetch_openAI_results(f"scraped_{i + 1}.html", wise_snippets[0])
                 # break
             except Exception as e:
                 print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
                 html_data = ""
         
         # Step 3: Process opneAI_response with OpenAI API
+        print('opneAI_response: ', opneAI_response)
         average_cost = await get_average_price_square_per_meter(opneAI_response)
         print('average_cost returned: ', average_cost)
     else:
