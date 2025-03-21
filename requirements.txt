@@ -9,3 +9,5 @@ SpeechRecognition==3.14.1
 transformers==4.49.0
 pyannote.audio==3.3.2
 pyppeteer==2.0.0
+serpapi
+google-search-results
