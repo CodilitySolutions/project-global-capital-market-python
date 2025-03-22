@@ -14,6 +14,9 @@ import asyncio
 
 from dotenv import load_dotenv
 
+import json
+import re
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, "dot.env"))
 
@@ -194,6 +197,10 @@ async def analyse_location_image(address):
 
 
 async def fetch_html(url):
+    if url.lower().endswith('.pdf'):
+        print('No need to scrap those')
+        return None
+
     try:
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         response.raise_for_status()  # Raise error for failed requests (4xx, 5xx)
@@ -252,18 +259,39 @@ async def get_average_price_square_per_meter(scaped_responses):
         ],
     )
 
-    response_text = response.choices[0].message.content
+    response_text = parse_response(response.choices[0].message.content)
+    print('response_text from parse_response: ', response_text)
 
+    return response_text
+
+
+
+def parse_response(response_text):
     try:
-        response_json = json.loads(response_text.replace("'", "\""))  # Convert string to JSON
+        # Detect if response is wrapped in a code block (```json ... ```)
+        match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+        if match:
+            response_text = match.group(1)  # Extract only JSON content
+
+        # Ensure proper quotes for JSON parsing
+        response_text = response_text.replace("'", "\"")
+
+        # Convert string to JSON
+        response_json = json.loads(response_text)
+
         print('Parsed Data --------get_average_price_square_per_meter---: ', response_json)
+
+        # Extract and convert "average" safely
         average = response_json.get("average", "")
-        return int(float(average)) if average else ""  # Ensure whole number value is returned
+        return int(float(average)) if average else ""  # Convert safely
+
     except json.JSONDecodeError:
         print("Failed to parse OpenAI response as JSON. Raw response:", response_text)
     except ValueError:
         print("Failed to convert average to whole number. Raw average:", average)
+
     return ""
+
 
 async def get_heuristic_cost(country, city, address):
 
@@ -430,6 +458,7 @@ async def calculate_cost():
 
 
     db.read_cost_data()
+
 
 
 if __name__ == "__main__":
