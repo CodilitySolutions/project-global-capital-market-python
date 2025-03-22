@@ -241,7 +241,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
     return json_response
 
 async def get_average_price_square_per_meter(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI in the above text that are in json and return it encapsulated in data {} object of whole json  {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property',  } format only.\n Also Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property',  } format only.\n Also Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
 
     # response = await get_openai_response(average_prompt)
     response = client.chat.completions.create(
@@ -347,6 +347,7 @@ async def get_heuristic_cost(country, city, address):
         html_data = ""
 
         opneAI_response = ""
+        accumulated_opneAI_response = ""
 
 
         for i, link_url in enumerate(links):
@@ -360,7 +361,8 @@ async def get_heuristic_cost(country, city, address):
                 with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                     file.write(html_data)
                 print(f"📂 HTML content saved to scraped_{i + 1}.html")
-                opneAI_response += await fetch_openAI_results(f"scraped_{i + 1}.html", wise_snippets[0])
+                opneAI_response = await fetch_openAI_results(f"scraped_{i + 1}.html", wise_snippets[0])
+                accumulated_opneAI_response += opneAI_response
                 with open(f"openai_{i + 1}.txt", "w", encoding="utf-8") as file:
                     file.write(opneAI_response)
                 print(f"📂 parsed content saved to openai_{i + 1}.txt")
@@ -370,8 +372,8 @@ async def get_heuristic_cost(country, city, address):
                 html_data = ""
         
         # Step 3: Process opneAI_response with OpenAI API
-        print('opneAI_response: ', opneAI_response)
-        average_cost = await get_average_price_square_per_meter(opneAI_response)
+        print('accumulated_opneAI_response: ', accumulated_opneAI_response)
+        average_cost = await get_average_price_square_per_meter(accumulated_opneAI_response)
         print('average_cost returned: ', average_cost)
 
         if average_cost not in ['', 0]:
