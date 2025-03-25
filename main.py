@@ -204,7 +204,14 @@ async def fetch_html(url):
     try:
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         response.raise_for_status()  # Raise error for failed requests (4xx, 5xx)
-        return response.text  # Return the HTML content
+        html_content = response.text  # Get the HTML content
+
+        # Remove head tag and its content, keep only body tag and its content
+        body_content = re.search(r'<body.*?>(.*?)</body>', html_content, re.DOTALL | re.IGNORECASE)
+        if body_content:
+            return body_content.group(1)
+        else:
+            return html_content  # Return original content if body tag not found
     except requests.exceptions.RequestException as e:
         print(f"Error fetching HTML from {url}: {e}")
         return None  # Return None if request fails
@@ -241,7 +248,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
     return json_response
 
 async def get_average_price_square_per_meter(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property',  } format only.\n Also Calculate and Return average price of square per meter in {'average': 'average price of square per meter'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property',  } format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD'} in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
 
     # response = await get_openai_response(average_prompt)
     response = client.chat.completions.create(
