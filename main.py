@@ -98,7 +98,7 @@ async def analyse_address_using_openai(address):
     response = {'object': '', 'area_type': '', 'people': '', 'property_type': ''}
 
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=CHATGPT_MODEL,
         messages=[
             {
                 "role": "user",
@@ -156,7 +156,7 @@ async def analyse_location_image(address):
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CHATGPT_MODEL,
                 messages=[
                     {
                         "role": "user",
@@ -234,7 +234,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         """
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=CHATGPT_MODEL,
             messages=[
                 {"role": "system", "content": "You are an expert in property analysis and pricing."},
                 {"role": "user", "content": prompt}
@@ -252,7 +252,7 @@ async def get_average_price_square_per_meter(scaped_responses):
 
     # response = await get_openai_response(average_prompt)
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=CHATGPT_MODEL,
         messages=[
             {
                 "role": "user",
