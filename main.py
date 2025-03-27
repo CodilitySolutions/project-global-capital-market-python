@@ -437,7 +437,7 @@ async def calculate_cost():
         print('scrap_results: ', scrap_results)
 
         # CASE 1: If Scrap results are found
-        if len(scrap_results) > 0:
+        if scrap_results and len(scrap_results) and len(scrap_results) > 0:
             try:
                 neighborhood_cost = int(float(scrap_results.get("median", 0)))
                 street_cost = int(float(scrap_results.get("average", 0)))
