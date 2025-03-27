@@ -438,70 +438,34 @@ async def calculate_cost():
         
         neighborhood_cost = int(float(scrap_results["median"]))
         street_cost = int(float(scrap_results["average"]))
+        # CASE 1: If Scrap results are found
 
         if len(scrap_results) > 0:    
 
-                try:
-                    response, is_valid_address = await analyse_location_image(original_address)
-                    print('analyse_location_image response: ', response)
-                    
-                    if is_valid_address and len(response) > 0:
-                        # image_people_type 
-                        data.append((accountid, neighborhood_cost, street_cost, 0, str(response["image_people_type"]), str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), str(response["object"]), str(response["area_type"]), str(response["property_type"]), 1, address, ))
-                        print('data+++++ if +++++++: ', data)
-                        db.update_cost_data(data)
-                    else:
-                        # street_people_type, neighbourhood_people_type
-                        print('neighborhood_address: not found')
-                        analyse_address_response = await analyse_address_using_openai(original_address)
-                        data.append((accountid, neighborhood_cost, street_cost, 0, "", str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), "", str(analyse_address_response["area_type"]), str(analyse_address_response["property_type"]), 1, address, ))
-                        print('data+++++ else +++++++: ', data)
-                        db.update_cost_data(data)
-                except Exception as e:
-                    print(f"Database operation failed: {e}")
+            try:
+                response, is_valid_address = await analyse_location_image(original_address)
+                print('analyse_location_image response: ', response)
+                
+                if is_valid_address and len(response) > 0:
+                    # image_people_type 
+                    data.append((accountid, neighborhood_cost, street_cost, 0, str(response["image_people_type"]), str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), str(response["object"]), str(response["area_type"]), str(response["property_type"]), 1, address, ))
+                    print('data+++++ if +++++++: ', data)
+                    db.update_cost_data(data)
+                else:
+                    # street_people_type, neighbourhood_people_type
+                    print('neighborhood_address: not found')
+                    analyse_address_response = await analyse_address_using_openai(original_address)
+                    data.append((accountid, neighborhood_cost, street_cost, 0, "", str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), "", str(analyse_address_response["area_type"]), str(analyse_address_response["property_type"]), 1, address, ))
+                    print('data+++++ else +++++++: ', data)
+                    db.update_cost_data(data)
+            except Exception as e:
+                print(f"Database operation failed: {e}")
         else:
             print('scrap_results: empty')
 
-        #CASE no1: If address is found
-        # if len(cost) > 0:
+        # CASE 2: If address is NOT found AND neighborhood is found
+        # CASE 3: If address is found and neighborhood is NOT found
 
-        #     response = await analyse_address_using_openai(neighborhood_address)
-
-        #     if len(neighborhood_address) > 0:
-
-        #         response, is_valid_address = await analyse_location_image(neighborhood_address)
-
-        #         if is_valid_address and len(response) > 0:
-        #             data.append((
-        #                 accountid, 
-        #                 neighborhood_address, 
-        #                 cost, 
-        #                 str(response["object"]), 
-        #                 str(response["area_type"]),
-        #                 "", 
-        #                 str(response["image_people_type"]), 
-        #                 str(response["property_type"]
-        #                     ), 1))
-        #         else:
-        #             response = await analyse_address_using_openai(neighborhood_address)
-        #             data.append((
-        #                 accountid, 
-        #                 neighborhood_address, 
-        #                 cost, 
-        #                 "", 
-        #                 str(response["area_type"]), 
-        #                 str(response["street_people_type"]), 
-        #                 "",
-        #                 str(response["property_type"]
-        #                     ), 1))
-
-        #         db.insert_data(data)
-        #     else:
-        #         #Update cost, image_people_type, street_people_type, neighbourhood_people_type 
-        #         print('Average cost: ', cost)
-
-        #         data.append((accountid, cost, 1))
-        #         db.insert_cost(data)
 
         await asyncio.sleep(5)  # Sleep for 1 second after each iteration
 
