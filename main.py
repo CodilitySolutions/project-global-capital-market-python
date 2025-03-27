@@ -120,7 +120,7 @@ async def analyse_address_using_openai(address):
             print('address analyse: ', response)
         except:
             pass
-    
+
     return response
 
 
@@ -131,7 +131,7 @@ async def analyse_location_image(address):
         "address": address,
         "key": GOOGLE_MAP_API_KEY
     }
-    
+
     geocode_request = httpx.AsyncClient()
     geocode_response = await geocode_request.get(geocode_url, params=params)
     geocode_response = geocode_response.json()
@@ -155,7 +155,7 @@ async def analyse_location_image(address):
             image.save(buffered, format="PNG")
 
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        
+
             response = await client.chat.completions.create(
                 model=CHATGPT_MODEL,
                 messages=[
@@ -164,7 +164,7 @@ async def analyse_location_image(address):
                         "content": [
                             {
                                 "type": "text",
-                                "text": """Analyze this image and give me response in this json format: 
+                                "text": """Analyze this image and give me response in this json format:
                                         {'object': 'detect the object', 'area_type': 'which type of property is it like commercial or residential', 'image_people_type': 'which type of peoples are living there like Elite, Upper Class, Middle Class, Lower Class(poor)', 'property_type': 'detect property type like luxurius home, raw house etc'}
                                         \nReturn the JSON formatted with {} and don't wrap with ```json. Should not contain unknow or not available in response if any information not found instead of that return any location in that city or state.
                                         """,
@@ -187,7 +187,7 @@ async def analyse_location_image(address):
                     print('Data: ', response)
                 except:
                     print("Failed to get address analyse response")
-            
+
         else:
             print("Failed to get location image")
     else:
@@ -223,16 +223,16 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         html_data = file.read()
     if html_data:
         print("\n🤖 Processing HTML content with OpenAI API...")
-        
+
         prompt = f"""
         Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use description to guess area in square meters using hueristics, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
-        Provide a minimum of 10 to 20 results in structured JSON format with these keys:  
-        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter" ,"details_url".  
+        Provide a minimum of 10 to 20 results in structured JSON format with these keys:
+        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter" ,"details_url".
 
         HTML Content (trimmed for token limit):
         {html_data[:100000]}
         """
-        
+
         response = await client.chat.completions.create(
             model=CHATGPT_MODEL,
             messages=[
@@ -240,12 +240,13 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
                 {"role": "user", "content": prompt}
             ]
         )
-        
+
         json_response = response.choices[0].message.content
         #   sprint("\n📊 OpenAI Response:\n", json_response)
     else:
-        print("❌ No HTML content to process.")   
+        print("❌ No HTML content to process.")
     return json_response
+
 
 async def get_average_price_people_type(scaped_responses):
     average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Elite, Upper Class, Middle Class, Lower Class(poor)', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Elite, Upper Class, Middle Class, Lower Class(poor)' } in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
@@ -270,7 +271,6 @@ async def get_average_price_people_type(scaped_responses):
     print('response_text from parse_response: ', response_text)
 
     return response_text
-
 
 
 def parse_response(response_text):
@@ -314,7 +314,7 @@ async def get_scrap_results(country, city, address):
     print("\n🔍 Fetching results from SERP API...")
     db = Database()
     sources = db.read_property_sites_data(country, city, address)
-    
+
     if sources:
         print("sources", sources)
 
@@ -367,11 +367,11 @@ async def get_scrap_results(country, city, address):
 
         for i, link_url in enumerate(links):
             print(f"\n🌍 Fetching HTML content from: {link_url}")
-            
+
             try:
                 html_data = await fetch_html(link_url)
                 print(f"✅ HTML content fetched successfully from link {i + 1}.")
-                
+
                 # Save the HTML content to a file
                 with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                     file.write(html_data)
@@ -385,7 +385,7 @@ async def get_scrap_results(country, city, address):
             except Exception as e:
                 print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
                 html_data = ""
-        
+
         # Step 3: Process opneAI_response with OpenAI API
         print('accumulated_opneAI_response: ', accumulated_opneAI_response)
         average_price_people_type = await get_average_price_people_type(accumulated_opneAI_response)
@@ -400,7 +400,7 @@ async def get_scrap_results(country, city, address):
         html_data = ""
 
     # Step 3: Process HTML with OpenAI API
- 
+
     return 0
 
 
@@ -433,21 +433,25 @@ async def calculate_cost():
         print('original_address:     ', original_address)
 
         #Now we are going to get the cost of the address
-        scrap_results = await get_scrap_results(country, city, address) 
+        scrap_results = await get_scrap_results(country, city, address)
         print('scrap_results: ', scrap_results)
-        
-        neighborhood_cost = int(float(scrap_results["median"]))
-        street_cost = int(float(scrap_results["average"]))
-        # CASE 1: If Scrap results are found
 
-        if len(scrap_results) > 0:    
+        # CASE 1: If Scrap results are found
+        if len(scrap_results) > 0:
+            try:
+                neighborhood_cost = int(float(scrap_results.get("median", 0)))
+                street_cost = int(float(scrap_results.get("average", 0)))
+            except Exception as e:
+                print(f"❌ Failed to extract cost values from scrap_results: {e}")
+                neighborhood_cost = 0
+                street_cost = 0
 
             try:
                 response, is_valid_address = await analyse_location_image(original_address)
                 print('analyse_location_image response: ', response)
-                
+
                 if is_valid_address and len(response) > 0:
-                    # image_people_type 
+                    # image_people_type
                     data.append((accountid, neighborhood_cost, street_cost, 0, str(response["image_people_type"]), str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), str(response["object"]), str(response["area_type"]), str(response["property_type"]), 1, address, ))
                     print('data+++++ if +++++++: ', data)
                     db.update_cost_data(data)
@@ -459,9 +463,9 @@ async def calculate_cost():
                     print('data+++++ else +++++++: ', data)
                     db.update_cost_data(data)
             except Exception as e:
-                print(f"Database operation failed: {e}")
+                print(f"❌ Database or processing operation failed: {e}")
         else:
-            print('scrap_results: empty')
+            print('❌ scrap_results: empty')
 
         # CASE 2: If address is NOT found AND neighborhood is found
         # CASE 3: If address is found and neighborhood is NOT found
@@ -473,7 +477,6 @@ async def calculate_cost():
     db.read_cost_data()
 
 
-
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     try:
@@ -482,5 +485,3 @@ if __name__ == "__main__":
         loop.run_until_complete(asyncio.sleep(1))  # Give time for cleanup
         loop.run_until_complete(loop.shutdown_asyncgens())  # Force shutdown of pending async generators
         loop.close()
-
-
