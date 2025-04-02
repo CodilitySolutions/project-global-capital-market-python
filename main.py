@@ -224,7 +224,7 @@ async def analyse_location_image(address):
                             {
                                 "type": "text",
                                 "text": """Analyze this image and give me response in this json format:
-                                        {'object': 'detect the object', 'area_type': 'which type of property is it like commercial or residential', 'image_people_type': 'which type of peoples are living there like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'detect property type like luxurius home, raw house etc'}
+                                        {'object': 'detect the object or no image detected', 'area_type': 'which type of property is it like commercial or residential', 'image_people_type': 'which type of peoples are living there like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'detect property type like luxurius home, raw house etc'}
                                         \nReturn the JSON formatted with {} and don't wrap with ```json. Should not contain unknown or not available in response if any information not found instead of that return any location in that city or state.
                                         """,
                             },
@@ -313,7 +313,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
 
 
 async def get_average_price_people_type(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class' } in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD but do not put USD OR $ SIGN in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class' } in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
 
     # response = await get_openai_response(average_prompt)
     response = await client.chat.completions.create(
@@ -549,16 +549,46 @@ async def calculate_cost():
                 response, is_valid_address = await analyse_location_image(original_address)
                 print('analyse_location_image response: ', response)
 
-                if is_valid_address and response["object"] != 'no object detected' and len(response) > 0:
+                if is_valid_address and response["object"] != 'no image detected' and response["object"] != 'no object detected' and response["object"] != 'no imagery available' and len(response) > 0:
                     # image_people_type
-                    data.append((accountid, neighborhood_cost, street_cost, 0, str(response["image_people_type"]), str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), str(response["object"]), str(response["area_type"]), str(response["property_type"]), 1, address, str(scrap_results["people_type"]),  ))
+                    
+                    analyse_address_response = await analyse_address_using_openai(original_address)
+                    data.append((
+                        accountid, 
+                        neighborhood_cost, 
+                        street_cost, 
+                        0, 
+                        str(response["image_people_type"]), 
+                        str(scrap_results.get("street_people_type", analyse_address_response.get("street_people_type", ""))), 
+                        str(scrap_results.get("neighbourhood_people_type", analyse_address_response.get("neighbourhood_people_type", ""))), 
+                        str(response["object"]), 
+                        str(response["area_type"]), 
+                        str(response["property_type"]), 
+                        1, 
+                        address, 
+                        str(scrap_results.get("people_type", analyse_address_response.get("people_type", "")))
+                    ))
                     print('data+++++ if +++++++: ', data)
                     db.update_cost_data(data)
                 else:
                     # street_people_type, neighbourhood_people_type, people_type
                     print('neighborhood_address: not found')
                     analyse_address_response = await analyse_address_using_openai(original_address)
-                    data.append((accountid, neighborhood_cost, street_cost, 0, "", str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), "", str(analyse_address_response["area_type"]), str(analyse_address_response["property_type"]), 1, address, str(scrap_results["people_type"]), ))
+                    data.append((
+                        accountid, 
+                        neighborhood_cost, 
+                        street_cost, 
+                        0, 
+                        "", 
+                        str(scrap_results.get("street_people_type", analyse_address_response.get("street_people_type", ""))), 
+                        str(scrap_results.get("neighbourhood_people_type", analyse_address_response.get("neighbourhood_people_type", ""))), 
+                        "no imagery available", 
+                        str(analyse_address_response["area_type"]), 
+                        str(analyse_address_response["property_type"]), 
+                        1, 
+                        address, 
+                        str(scrap_results.get("people_type", analyse_address_response.get("people_type", "")))
+                    ))
                     print('data+++++ else +++++++: ', data)
                     db.update_cost_data(data)
             except Exception as e:
