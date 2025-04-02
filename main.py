@@ -212,6 +212,7 @@ async def analyse_location_image(address):
             image.save(buffered, format="PNG")
 
             img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            # print('img_str: ', img_str)
 
             response = await client.chat.completions.create(
                 model=CHATGPT_MODEL,
@@ -283,9 +284,13 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         print("\n🤖 Processing HTML content with OpenAI API...")
 
         prompt = f"""
-        Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use description to guess area in square meters using hueristics, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
-        Provide a minimum of 10 to 20 results in structured JSON format with these keys:
-        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter", "details_url", "Return the JSON formatted and don't wrap with ```json."
+        Analyze the html_data that I provided to you and Return the JSON formatted and don't wrap with ```json.. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use title and description to guess area in square meters, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
+        Provide a minimum of 10 to 20 results in following structured JSON format:
+         {{'title': STRING, 
+              'description': STRING, 'price': MONEY, 'price_in_USD': MONEY, 
+              'square_meter': INTEGER,
+              'per_square_meter': MONEY,
+              'details_url': STRING}}
 
         HTML Content (trimmed for token limit):
         {html_data[:100000]}
@@ -544,7 +549,7 @@ async def calculate_cost():
                 response, is_valid_address = await analyse_location_image(original_address)
                 print('analyse_location_image response: ', response)
 
-                if is_valid_address and len(response) > 0:
+                if is_valid_address and response["object"] != 'no object detected' and len(response) > 0:
                     # image_people_type
                     data.append((accountid, neighborhood_cost, street_cost, 0, str(response["image_people_type"]), str(scrap_results["street_people_type"]), str(scrap_results["neighbourhood_people_type"]), str(response["object"]), str(response["area_type"]), str(response["property_type"]), 1, address, str(scrap_results["people_type"]),  ))
                     print('data+++++ if +++++++: ', data)
