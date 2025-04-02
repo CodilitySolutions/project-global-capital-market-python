@@ -156,13 +156,14 @@ async def analyse_address_using_openai(address):
 
     response = await client.chat.completions.create(
         model=CHATGPT_MODEL,
-        messages=[
+        temperature=0,
+    messages=[
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": "Address: "+address+"\nGive me response in this json format: {'area_type': 'which type of properties are in that area like commercial or residential', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class'}\nReturn the JSON formatted with {} and don't wrap with ```json.",
+                        "text": "Address: "+address+"\nGive me response in this json format: {'area_type': 'commercial or residential', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class'}\nReturn the JSON formatted with {} and don't wrap with ```json.",
                     }
                 ],
             }
@@ -214,7 +215,8 @@ async def analyse_location_image(address):
 
             response = await client.chat.completions.create(
                 model=CHATGPT_MODEL,
-                messages=[
+                temperature=0,
+    messages=[
                     {
                         "role": "user",
                         "content": [
@@ -291,7 +293,8 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
 
         response = await client.chat.completions.create(
             model=CHATGPT_MODEL,
-            messages=[
+            temperature=0,
+    messages=[
                 {"role": "system", "content": "You are an expert in property analysis and pricing."},
                 {"role": "user", "content": prompt}
             ]
@@ -310,7 +313,8 @@ async def get_average_price_people_type(scaped_responses):
     # response = await get_openai_response(average_prompt)
     response = await client.chat.completions.create(
         model=CHATGPT_MODEL,
-        messages=[
+        temperature=0,
+    messages=[
             {
                 "role": "user",
                 "content": [
