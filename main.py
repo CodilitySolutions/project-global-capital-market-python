@@ -5,6 +5,8 @@ from database import Database
 import httpx
 from PIL import Image
 from io import BytesIO
+import re
+
 import requests
 from serpapi import GoogleSearch
 import os
@@ -29,6 +31,14 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 # client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 
+def clean_openai_json(raw_response: str) -> str:
+    raw_response = raw_response.strip()
+    match = re.search(r'(\[.*?\]|\{.*?\})', raw_response, re.DOTALL)
+    if match:
+        print('clean_openai_json match: ', match)
+        return match.group(1)
+    return "[]"
+
 async def get_openai_response(prompt):
     result=""
 
@@ -42,6 +52,45 @@ async def get_openai_response(prompt):
         print("Exception: ", e)
 
     return result
+
+# using openai assistant for chat 
+# ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
+
+# async def get_openai_response(prompt):
+#     result = ""
+
+#     try:
+#         # Step 1: Create a Thread
+#         thread = await client.beta.threads.create()
+
+#         # Step 2: Post the prompt as a message
+#         await client.beta.threads.messages.create(
+#             thread_id=thread.id,
+#             role="user",
+#             content=prompt
+#         )
+
+#         # Step 3: Run the Assistant
+#         run = await client.beta.threads.runs.create(
+#             thread_id=thread.id,
+#             assistant_id=ASSISTANT_ID
+#         )
+
+#         # Step 4: Wait for completion
+#         while True:
+#             run_status = await client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+#             if run_status.status == "completed":
+#                 break
+#             await asyncio.sleep(1)
+
+#         # Step 5: Get the messages (assistant's reply)
+#         messages = await client.beta.threads.messages.list(thread_id=thread.id)
+#         result = messages.data[0].content[0].text.value
+
+#     except Exception as e:
+#         print("Exception: ", e)
+
+#     return result
 
 
 async def get_cost(neighborhood_address, city, country):
@@ -166,7 +215,7 @@ async def analyse_location_image(address):
                                 "type": "text",
                                 "text": """Analyze this image and give me response in this json format:
                                         {'object': 'detect the object', 'area_type': 'which type of property is it like commercial or residential', 'image_people_type': 'which type of peoples are living there like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'detect property type like luxurius home, raw house etc'}
-                                        \nReturn the JSON formatted with {} and don't wrap with ```json. Should not contain unknow or not available in response if any information not found instead of that return any location in that city or state.
+                                        \nReturn the JSON formatted with {} and don't wrap with ```json. Should not contain unknown or not available in response if any information not found instead of that return any location in that city or state.
                                         """,
                             },
                             {
@@ -227,10 +276,10 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         prompt = f"""
         Analyze the html_data that I provided to you. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use description to guess area in square meters using hueristics, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
         Provide a minimum of 10 to 20 results in structured JSON format with these keys:
-        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter" ,"details_url".
+        "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter", "details_url", "Return the JSON formatted and don't wrap with ```json."
 
         HTML Content (trimmed for token limit):
-        {html_data[:100000]}
+        {html_data[:30000]}
         """
 
         response = await client.chat.completions.create(
@@ -363,24 +412,52 @@ async def get_scrap_results(country, city, address):
 
         opneAI_response = ""
         accumulated_opneAI_response = ""
-
+        total_records = 0
+        min_required_records = 10
 
         for i, link_url in enumerate(links):
-            print(f"\n🌍 Fetching HTML content from: {link_url}")
+            print(f"🌍 Fetching HTML content from: {link_url}")
 
             try:
                 html_data = await fetch_html(link_url)
                 print(f"✅ HTML content fetched successfully from link {i + 1}.")
 
                 # Save the HTML content to a file
-                with open(f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
+                file_path = f"scraped_{i + 1}.html"
+                with open(file_path, "w", encoding="utf-8") as file:
                     file.write(html_data)
-                print(f"📂 HTML content saved to scraped_{i + 1}.html")
-                opneAI_response = await fetch_openAI_results(f"scraped_{i + 1}.html", wise_snippets[0])
+
+                print(f"📂 HTML content saved to {file_path}")
+                opneAI_response = await fetch_openAI_results(file_path, wise_snippets[0])
+
+                # Count entries if possible
+                try:
+                    cleaned_response = clean_openai_json(opneAI_response)
+                    print('cleaned_response ++: ', cleaned_response)
+                    data = json.loads(cleaned_response)
+                    print('cleaned_response data ++: ', data)
+                    if isinstance(data, list):
+                        total_records += len(data)
+                    elif isinstance(data, dict):
+                        total_records += 1
+                except json.JSONDecodeError as e:
+                    print(f"⚠️ JSON error: {e}")
+                    print(f"Raw OpenAI response (truncated): {opneAI_response[:300]}")
+            
+                    print(f"⚠️ Could not parse record count from site {i+1}: {e}")
+
                 accumulated_opneAI_response += opneAI_response
+
                 with open(f"openai_{i + 1}.txt", "w", encoding="utf-8") as file:
                     file.write(opneAI_response)
-                print(f"📂 parsed content saved to openai_{i + 1}.txt")
+                print(f"📂 Parsed content saved to openai_{i + 1}.txt")
+
+                if total_records >= min_required_records:
+                    print(f"✅ Minimum of {min_required_records} records reached. Stopping early.")
+                    break
+
+            except Exception as e:
+                print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
                 # break
             except Exception as e:
                 print(f"❌ Failed to retrieve data from link {i + 1}. Error: {e}")
