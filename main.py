@@ -39,58 +39,58 @@ def clean_openai_json(raw_response: str) -> str:
         return match.group(1)
     return "[]"
 
-async def get_openai_response(prompt):
-    result=""
-
-    try:
-        response = await client.chat.completions.create(
-            model=CHATGPT_MODEL,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        result = response.choices[0].message.content
-    except Exception as e:
-        print("Exception: ", e)
-
-    return result
-
-# using openai assistant for chat 
-# ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
-
 # async def get_openai_response(prompt):
-#     result = ""
+#     result=""
 
 #     try:
-#         # Step 1: Create a Thread
-#         thread = await client.beta.threads.create()
-
-#         # Step 2: Post the prompt as a message
-#         await client.beta.threads.messages.create(
-#             thread_id=thread.id,
-#             role="user",
-#             content=prompt
+#         response = await client.chat.completions.create(
+#             model=CHATGPT_MODEL,
+#             messages=[{"role": "user", "content": prompt}]
 #         )
-
-#         # Step 3: Run the Assistant
-#         run = await client.beta.threads.runs.create(
-#             thread_id=thread.id,
-#             assistant_id=ASSISTANT_ID
-#         )
-
-#         # Step 4: Wait for completion
-#         while True:
-#             run_status = await client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-#             if run_status.status == "completed":
-#                 break
-#             await asyncio.sleep(1)
-
-#         # Step 5: Get the messages (assistant's reply)
-#         messages = await client.beta.threads.messages.list(thread_id=thread.id)
-#         result = messages.data[0].content[0].text.value
-
+#         result = response.choices[0].message.content
 #     except Exception as e:
 #         print("Exception: ", e)
 
 #     return result
+
+# using openai assistant for chat 
+ASSISTANT_ID = os.getenv("OPENAI_ASSISTANT_ID")
+
+async def get_openai_response(prompt):
+    result = ""
+
+    try:
+        # Step 1: Create a Thread
+        thread = await client.beta.threads.create()
+
+        # Step 2: Post the prompt as a message
+        await client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=prompt
+        )
+
+        # Step 3: Run the Assistant
+        run = await client.beta.threads.runs.create(
+            thread_id=thread.id,
+            assistant_id=ASSISTANT_ID
+        )
+
+        # Step 4: Wait for completion
+        while True:
+            run_status = await client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+            if run_status.status == "completed":
+                break
+            await asyncio.sleep(1)
+
+        # Step 5: Get the messages (assistant's reply)
+        messages = await client.beta.threads.messages.list(thread_id=thread.id)
+        result = messages.data[0].content[0].text.value
+
+    except Exception as e:
+        print("Exception: ", e)
+
+    return result
 
 
 async def get_cost(neighborhood_address, city, country):
@@ -279,7 +279,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         "title", "description", "price", "price_in_USD", "square_meter", "per_square_meter", "details_url", "Return the JSON formatted and don't wrap with ```json."
 
         HTML Content (trimmed for token limit):
-        {html_data[:30000]}
+        {html_data[:100000]}
         """
 
         response = await client.chat.completions.create(
@@ -361,15 +361,15 @@ async def get_scrap_results(country, city, address):
 
     # Step 1: Fetch Results from SERP API
     print("\n🔍 Fetching results from SERP API...")
-    db = Database()
-    sources = db.read_property_sites_data(country, city, address)
+    # db = Database()
+    # sources = db.read_property_sites_data(country, city, address)
 
-    if sources:
-        print("sources", sources)
+    # if sources:
+    #     print("sources", sources)
 
     params = {
         "engine": "google",
-        "q": f"Find property for sale in {country} having City {city}, address {address}",
+        "q": f"Find houses, flats, apartments, commercial property listings for sale in {country} having City {city}, address {address}",
         "api_key": SERP_API_KEY,
     }
 
