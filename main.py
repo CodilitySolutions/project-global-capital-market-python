@@ -32,11 +32,18 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 def clean_openai_json(raw_response: str) -> str:
+    import re
     raw_response = raw_response.strip()
-    match = re.search(r'(\[.*?\]|\{.*?\})', raw_response, re.DOTALL)
-    if match:
-        print('clean_openai_json match: ', match)
-        return match.group(1)
+
+    # Try to find the most complete JSON object or array
+    json_pattern = re.compile(r'({.*?}|\[.*?\])', re.DOTALL)
+    matches = json_pattern.findall(raw_response)
+
+    if matches:
+        best_match = max(matches, key=len)
+        print('clean_openai_json match: ', best_match[:100])
+        return best_match
+
     return "[]"
 
 # async def get_openai_response(prompt):
@@ -356,8 +363,22 @@ def parse_response(response_text):
 
     return ""
 
+async def cost_in_dollar(country):
+    params = {
+        "engine": "google",
+        "q": f"1 {country} currency in USD",
+        "api_key": SERP_API_KEY,
+    }
+    search1 = GoogleSearch(params)
+    results1 = search1.get_dict()
+    organic_results1 = results1.get("organic_results", [])
+    # print("organic_results1: ", organic_results1)
+    wise_snippets = [result['snippet_highlighted_words'] for result in organic_results1 if result.get('source') == 'Wise']
 
-async def get_scrap_results(country, city, address):
+    print("Snippets from Wise:------------", wise_snippets[0])
+    return wise_snippets[0]
+
+async def get_scrap_results(country, city, address, price_in_dollars):
 
     # Step 1: Fetch Results from SERP API
     print("\n🔍 Fetching results from SERP API...")
@@ -382,21 +403,11 @@ async def get_scrap_results(country, city, address):
     # Extracting links from organic_results
     links = [result["link"] for result in organic_results]
 
-    params = {
-        "engine": "google",
-        "q": f"1 {country} currency in USD",
-        "api_key": SERP_API_KEY,
-    }
+
 
     # print(f"params = {params}")
 
-    search1 = GoogleSearch(params)
-    results1 = search1.get_dict()
-    organic_results1 = results1.get("organic_results", [])
-    # print("organic_results1: ", organic_results1)
-    wise_snippets = [result['snippet_highlighted_words'] for result in organic_results1 if result.get('source') == 'Wise']
 
-    print("Snippets from Wise:------------", wise_snippets[0])
     # return 0
 
     # Extracting links from organic_results
@@ -428,7 +439,7 @@ async def get_scrap_results(country, city, address):
                     file.write(html_data)
 
                 print(f"📂 HTML content saved to {file_path}")
-                opneAI_response = await fetch_openAI_results(file_path, wise_snippets[0])
+                opneAI_response = await fetch_openAI_results(file_path, price_in_dollars)
 
                 # Count entries if possible
                 try:
@@ -509,8 +520,10 @@ async def calculate_cost():
 
         print('original_address:     ', original_address)
 
+
+        cost_in_dollars = await cost_in_dollar(country)
         #Now we are going to get the cost of the address
-        scrap_results = await get_scrap_results(country, city, address)
+        scrap_results = await get_scrap_results(country, city, address,cost_in_dollars)
         print('scrap_results: ', scrap_results)
 
         # CASE 1: If Scrap results are found
