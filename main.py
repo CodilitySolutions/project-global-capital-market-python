@@ -468,7 +468,10 @@ async def get_scrap_results(country, city, address, price_in_dollars):
                     if isinstance(data, list):
                         total_records += len(data)
                     elif isinstance(data, dict):
-                        total_records += 1
+                        for value in data.values():
+                            if isinstance(value, list):
+                                total_records += len(value)
+                                break
                 except json.JSONDecodeError as e:
                     print(f"⚠️ JSON error: {e}")
                     print(f"Raw OpenAI response (truncated): {opneAI_response[:300]}")
