@@ -281,6 +281,7 @@ async def fetch_html(url):
 
 
 async def fetch_openAI_results(filename, covert_price_to_dollar):
+    print("\n🤖 function fetch_openAI_results started ...")
     # Read the saved file content
     with open(filename, "r", encoding="utf-8") as file:
         html_data = file.read()
@@ -317,8 +318,8 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
 
 
 async def get_average_price_people_type(scaped_responses):
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD but do not put USD OR $ SIGN in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class' } in the JSON formatted with {} and don't wrap with ```json.\n If average not found then response should be {'average': '', 'error': error}. Not include unknown or not available in response."
-
+    print("\n📊 function get_average_price_people_type started ...")
+    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD but do not put USD OR $ SIGN in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class' } in the JSON format:  {'average': INTEGER, 'median': INTEGER, 'street_people_type': STRING, 'property_type': STRING, 'people_type': STRING,'neighbourhood_people_type': STRING} and don't wrap with ```json.\n If average not found then not include unknown or not available in response."
     # response = await get_openai_response(average_prompt)
     response = await client.chat.completions.create(
         model=CHATGPT_MODEL,
@@ -377,6 +378,7 @@ def parse_response(response_text):
     return ""
 
 async def cost_in_dollar(country):
+    print("\n📊 function cost_in_dollar started ...")
     params = {
         "engine": "google",
         "q": f"1 {country} currency in USD",
@@ -392,6 +394,7 @@ async def cost_in_dollar(country):
     return wise_snippets[0]
 
 async def get_scrap_results(country, city, address, price_in_dollars):
+    print("\n📊 function get_scrap_results started ...")
 
     # Step 1: Fetch Results from SERP API
     print("\n🔍 Fetching results from SERP API...")
