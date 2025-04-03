@@ -31,20 +31,24 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 # client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 
+import json
+
 def clean_openai_json(raw_response: str) -> str:
-    import re
     raw_response = raw_response.strip()
+    raw_response = raw_response.replace("“", "\"").replace("”", "\"").replace("’", "'")
 
-    # Try to find the most complete JSON object or array
-    json_pattern = re.compile(r'({.*?}|\[.*?\])', re.DOTALL)
-    matches = json_pattern.findall(raw_response)
-
-    if matches:
-        best_match = max(matches, key=len)
-        print('clean_openai_json match: ', best_match[:100])
-        return best_match
+    try:
+        data = json.loads(raw_response)
+        # Accept either:
+        # - A dict with "properties"
+        # - A top-level list of property dictionaries
+        if (isinstance(data, dict) and "properties" in data) or isinstance(data, list):
+            return json.dumps(data, indent=2)
+    except Exception as e:
+        print("❌ JSON decode error:", e)
 
     return "[]"
+
 
 # async def get_openai_response(prompt):
 #     result=""
