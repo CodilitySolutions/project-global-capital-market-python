@@ -186,6 +186,7 @@ async def analyse_address_using_openai(address):
 
 
 async def analyse_location_image(address):
+    print("\n🤖 function analyse_location_image started ...")
     is_valid = False
     geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {
@@ -260,6 +261,7 @@ async def analyse_location_image(address):
 
 
 async def fetch_html(url):
+    print("\n🤖 function fetch_html started ...")
     if url.lower().endswith('.pdf'):
         print('No need to scrap those')
         return None
