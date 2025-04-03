@@ -321,7 +321,50 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
 
 async def get_average_price_people_type(scaped_responses):
     print("\n📊 function get_average_price_people_type started ...")
-    average_prompt = scaped_responses+"\n\nThe text given above has all the openAI responses of scraped data from multiple websites. In given text ignore OpenAI responses that are not in json and just consider OpenAI responses in the above text that are in json {'title': 'listed property title' , 'description': 'listed property title', 'price': 'price of property', 'price_in_USD': 'price of property in USD', 'square_meter': 'size / area of property ', 'details_url': 'details page link of property'} format only.\n Also Calculate and Return average price of square per meter in USD and median price of square per meter in USD but do not put USD OR $ SIGN in {'average': 'average price of square per meter in USD', 'median': 'median price of square per meter in USD', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', 'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class' } in the JSON format:  {'average': INTEGER, 'median': INTEGER, 'street_people_type': STRING, 'property_type': STRING, 'people_type': STRING,'neighbourhood_people_type': STRING} and don't wrap with ```json.\n If average not found then not include unknown or not available in response."
+    average_prompt = scaped_responses+"""\n\nThe input text contains multiple OpenAI responses generated from scraped data across various property listing websites.
+
+1. From the input text, **only extract the responses that are in valid JSON format** matching this structure:
+{
+  "title": "listed property title",
+  "description": "description of the listed property",
+  "price": "price of property",
+  "price_in_USD": "price of property in USD",
+  "square_meter": "size / area of property",
+  "details_url": "details page link of property"
+}
+
+2. Ignore all non-JSON or malformed responses.
+
+3. Based on the valid extracted JSON responses, calculate the **average** and **median price per square meter in USD**. Round the results to the nearest whole number.
+
+4. Then, generate and return a single, final JSON object in the following structure:
+{
+  "average": INTEGER, // average price per square meter in USD
+  "median": INTEGER,  // median price per square meter in USD
+  "street_people_type": STRING,        // e.g., "Wealthy", "Upper Class", etc.
+  "property_type": STRING,             // e.g., "Wealthy", "Upper Class", etc.
+  "people_type": STRING,               // e.g., "Wealthy", "Upper Class", etc.
+  "neighbourhood_people_type": STRING  // e.g., "Wealthy", "Upper Class", etc.
+}
+
+5. **Do not** include currency symbols like `$` or `USD` in numeric values.
+
+6. **Do not** wrap the final output in markdown syntax like triple backticks or `json`.
+
+7. If average or median cannot be calculated (e.g., missing or invalid data), simply place a **0** rather than using placeholder values like "unknown" or "N/A".
+
+8. The following fields can **only** have one of these four exact string values:
+- "Wealthy"
+- "Upper Class"
+- "Mid Class"
+- "Low Class"
+
+Applicable fields:
+- street_people_type
+- property_type
+- people_type
+- neighbourhood_people_type
+"""
     # response = await get_openai_response(average_prompt)
     response = await client.chat.completions.create(
         model=CHATGPT_MODEL,
@@ -442,7 +485,7 @@ async def get_scrap_results(country, city, address, price_in_dollars):
         opneAI_response = ""
         accumulated_opneAI_response = ""
         total_records = 0
-        min_required_records = 10
+        min_required_records = 8
 
         for i, link_url in enumerate(links):
             print(f"🌍 Fetching HTML content from: {link_url}")
