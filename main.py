@@ -296,7 +296,7 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
          {{'title': STRING, 
               'description': STRING, 'price': MONEY, 'price_in_USD': MONEY, 
               'square_meter': INTEGER,
-              'per_square_meter': MONEY,
+              'per_square_meter_in_USD': MONEY,
               'details_url': STRING}}
 
         HTML Content (trimmed for token limit):
