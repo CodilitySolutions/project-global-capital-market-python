@@ -6,7 +6,7 @@ import httpx
 from PIL import Image
 from io import BytesIO
 import re
-
+from bs4 import BeautifulSoup
 import requests
 from serpapi import GoogleSearch
 import os
@@ -32,6 +32,71 @@ GOOGLE_MAP_API_KEY = os.getenv("GOOGLE_MAP_API_KEY")
 client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 import json
+
+
+def fetch_properties_property24(url, usd_rate, i):
+    print("\n🤖 function fetch_properties_property24 started ...")
+    print("Fetching page...")
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=30)
+        file_path = f"scraped_{i + 1}.html"
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(response.text)
+        print(f"📂 HTML content saved to {file_path}")
+        response.raise_for_status()  # Raise an error for bad status codes
+    except Exception as e:
+        print("❌ Failed to fetch HTML.", e)
+        return []
+
+    print("✅ Page loaded. Parsing...")
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Get all cards that are likely to be properties
+    cards = soup.select('a.p24_content')  # More general selector
+
+    base_url = 'https://www.property24.com'
+
+    properties = []
+    for card in cards:
+        try:
+            title_tag = card.select_one('.p24_title')
+            title = title_tag.get_text(strip=True) if title_tag else 'N/A'
+
+            price_tag = card.select_one('.p24_price')
+            price_text = price_tag.get_text(strip=True).replace('R', '').replace(',', '').replace(' ', '')
+            price = int(price_text) if price_text.isdigit() else 0
+
+            desc_tag = card.select_one('.p24_excerpt')
+            description = desc_tag.get_text(strip=True) if desc_tag else 'N/A'
+
+            sqm_match = card.select_one('.p24_size')
+            sqm_text = sqm_match.get_text(strip=True).replace(' ', '').replace('m&#xB2;', '').replace('m²', '')
+            square_meters = int(sqm_text) if sqm_text.isdigit() else 0
+
+            relative_url = card['href']
+            property_url = base_url + relative_url
+
+            if price > 0:
+                usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])  # Extract the numeric value from the list
+                print(f"price * usd_rate: {price * usd_rate_value}")
+                print(f"((price/square_meters)*usd_rate): {(price/square_meters)*usd_rate_value}")
+                properties.append({
+                    'title': title,
+                    'description': description,
+                    'price': price,
+                    'price_in_USD': round(price * usd_rate_value),
+                    'square_meter': square_meters,
+                    'per_square_meter_in_USD': round((price/square_meters)*usd_rate_value),
+                    'details_url': property_url,
+                })
+        except Exception as e:
+            print(f"⚠️ Error parsing card: {e}")
+
+    return properties
+
 
 def clean_openai_json(raw_response: str) -> str:
     raw_response = raw_response.strip()
@@ -306,6 +371,7 @@ async def fetch_html(url):
 
 async def fetch_openAI_results(filename, covert_price_to_dollar):
     print("\n🤖 function fetch_openAI_results started ...")
+    print('covert_price_to_dollar: ', covert_price_to_dollar)
     # Read the saved file content
     with open(filename, "r", encoding="utf-8") as file:
         html_data = file.read()
@@ -528,23 +594,26 @@ async def get_scrap_results(country, city, address, price_in_dollars):
         opneAI_response = ""
         accumulated_opneAI_response = ""
         total_records = 0
-        min_required_records = 8
+        min_required_records = 18
 
         for i, link_url in enumerate(links):
             print(f"🌍 Fetching HTML content from: {link_url}")
 
             try:
-                html_data = await fetch_html(link_url)
-                print(f"✅ HTML content fetched successfully from link {i + 1}.")
+                if "property24.com" in link_url:
+                    print(f"🔍 Using Property24 scraper for link {i + 1}.")
+                    properties = fetch_properties_property24(link_url, price_in_dollars, i)
+                    opneAI_response = json.dumps(properties)
+                else:
+                    html_data = await fetch_html(link_url)
+                    print(f"✅ HTML content fetched successfully from link {i + 1}.")
 
-                # Save the HTML content to a file
-                file_path = f"scraped_{i + 1}.html"
-                with open(file_path, "w", encoding="utf-8") as file:
-                    file.write(html_data)
+                    file_path = f"scraped_{i + 1}.html"
+                    with open(file_path, "w", encoding="utf-8") as file:
+                        file.write(html_data)
 
-                print(f"📂 HTML content saved to {file_path}")
-                opneAI_response = await fetch_openAI_results(file_path, price_in_dollars)
-
+                    print(f"📂 HTML content saved to {file_path}")
+                    opneAI_response = await fetch_openAI_results(file_path, price_in_dollars)
                 # Count entries if possible
                 try:
                     cleaned_response = clean_openai_json(opneAI_response)
