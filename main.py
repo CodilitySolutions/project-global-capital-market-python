@@ -36,6 +36,7 @@ import json
 def fetch_properties_privateproperty(url, usd_rate, i):
     print("Fetching page...")
     try:
+        usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])  # Extract the numeric value from the list
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -60,12 +61,17 @@ def fetch_properties_privateproperty(url, usd_rate, i):
     properties = []
     for card in cards:
         try:
+            # print('------------============= card ----=============: ')
             title_tag = card.select_one('.listing-result__title')
             title = title_tag.get_text(strip=True) if title_tag else 'N/A'
+            # print('title',title)
 
             price_tag = card.select_one('.listing-result__price')
-            price_text = price_tag.get_text(strip=True).replace('R', '').replace(' ', '').replace(' ', '')
+            # print('------------=========  price_tag   ------------=========  : ', price_tag)
+            price_text = price_tag.get_text(strip=True).replace('R', '').replace(' ', '').replace(' ', '')
+            # print('------------=========  price_text   ------------=========  : ', price_text)
             price = int(price_text) if price_text.isdigit() else 0
+            # print('price',price)
 
 
             desc_tag = card.select_one('.listing-result__description')
@@ -76,6 +82,7 @@ def fetch_properties_privateproperty(url, usd_rate, i):
             square_meters = 0
             
             for span in size_spans:
+                # print('------------=========  span   ------------=========  : ', span)
                 title_attr = span.get('title', '')
                 if 'size' in title_attr.lower():  # Looks for either "Land size" or "Floor size"
                     size_text = span.get_text(strip=True)
@@ -84,13 +91,14 @@ def fetch_properties_privateproperty(url, usd_rate, i):
                     if size_num:
                         square_meters = int(size_num)
                     break
-
+            
+            # print('square_meters',square_meters)
             relative_url = card['href']
             property_url = base_url + relative_url
+            # print('property_url',property_url)
 
             if price > 0:
-                usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])  # Extract the numeric value from the list
-                print(f"price * usd_rate: {price * usd_rate_value}")
+                # print(f"price * usd_rate: {price * usd_rate_value}")
                 # print(f"((price/square_meters)*usd_rate): {(price/square_meters)*usd_rate_value}")
                 per_sqm = 0 if square_meters == 0 else round((price/square_meters)*usd_rate_value)
                 properties.append({
