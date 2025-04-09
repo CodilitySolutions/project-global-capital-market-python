@@ -794,7 +794,7 @@ async def calculate_cost():
         data = []
         accountid = row["accountid"]
         # country = row["country"]
-        # city = row["city"]
+        city = ''
         # address = row["address"]
         original_address = ""
 
