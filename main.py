@@ -585,8 +585,38 @@ async def get_scrap_results(country, city, address, price_in_dollars):
 
     if links:
         print("✅ SERP API Results:")
+        # Create a dictionary with priorities for specific domains
+        from urllib.parse import urlparse
+
+        domain_priority = {
+            'property24.com': 1,
+            'privateproperty.co.za': 2,
+            'realtor.com': 3,
+            'zillow.com': 4,
+            'trulia.com': 5
+        }
+
+        def extract_domain(link):
+            try:
+                domain = urlparse(link).netloc.lower()
+                if domain.startswith('www.'):
+                    domain = domain[4:]
+                return domain
+            except Exception:
+                return ""
+
         for i, link in enumerate(links):
-            print(f"{i + 1}. {link}")
+            print(f"original link {i + 1}. {link}")
+
+        sorted_links = sorted(
+            links,
+            key=lambda link: domain_priority.get(extract_domain(link), float('inf'))
+        )
+
+        for i, link in enumerate(sorted_links):
+            print(f"sorted link {i + 1}. {link}")
+
+
 
         # Step 2: Fetch HTML Content from each link
         html_data = ""
