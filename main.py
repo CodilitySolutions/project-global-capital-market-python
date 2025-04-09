@@ -220,27 +220,49 @@ async def analyse_location_image(address):
             # print('img_str: ', img_str)
 
             response = await client.chat.completions.create(
-                model=CHATGPT_MODEL,
-                temperature=0,
+    model=CHATGPT_MODEL,
+    temperature=0,
     messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """Analyze this image and give me response in this json format:
-                                        {'object': 'detect the object or no image detected', 'area_type': 'which type of property is it like commercial or residential', 'image_people_type': 'which type of peoples are living there like Wealthy, Upper Class, Mid Class, Low Class', 'property_type': 'detect property type like luxurius home, raw house etc'}
-                                        \nReturn the JSON formatted with {} and don't wrap with ```json. Should not contain unknown or not available in response if any information not found instead of that return any location in that city or state.
-                                        """,
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{img_str}"},
-                            },
-                        ],
+        {
+            "role": "system",
+            "content": "You are an expert in property image analysis and socio-economic categorization."
+        },
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": """
+Analyze the provided image and return a response strictly in the JSON format described below:
+
+- Extract the following details from the image clearly and explicitly:
+    - **object:** Identify the primary object visible or return "no image detected" if no clear object is present.
+    - **area_type:** Classify the area as "Commercial" or "Residential" based on the image.
+    - **image_people_type:** Determine the socio-economic class of the residents visible or inferred clearly from the image (e.g., Wealthy, Upper Class, Mid Class, Low Class).
+    - **property_type:** Specifically classify the property type shown (e.g., luxurious home, row house, apartment building, commercial office, shop, etc.).
+
+- If any information cannot be determined from the image, do NOT return "unknown" or "not available". Instead, provide a plausible and relevant location (e.g., a city, district, or locality name) from the city or state inferred from the image.
+
+Ensure the JSON response is formatted exactly as follows and do not wrap with markdown or ```json:
+
+{
+    "object": "STRING",
+    "area_type": "STRING",
+    "image_people_type": "STRING",
+    "property_type": "STRING"
+}
+"""
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_str}"
                     }
-                ],
-            )
+                },
+            ],
+        }
+    ],
+)
 
             response = response.choices[0].message.content
 
@@ -291,17 +313,38 @@ async def fetch_openAI_results(filename, covert_price_to_dollar):
         print("\n🤖 Processing HTML content with OpenAI API...")
 
         prompt = f"""
-        Analyze the html_data that I provided to you and Return the JSON formatted and don't wrap with ```json.. From that provide me the titles that are available in html content, title of the properties , descriptions of the properties that are in the html content , Provide prices (do not convert the price, give me same as in provided html), Convert these prices to dollar and provide these to me where coversion rate is {covert_price_to_dollar} , Provide square meters and if square meters is not provided then use title and description to guess area in square meters, Provide per square meter price in USD also provide me details Url. Ensure that you only include Flat / Apartment, House or Commercial properties and exclude any other property types.
-        Provide a minimum of 10 to 20 results in following structured JSON format:
-         {{'title': STRING, 
-              'description': STRING, 'price': MONEY, 'price_in_USD': MONEY, 
-              'square_meter': INTEGER,
-              'per_square_meter_in_USD': MONEY,
-              'details_url': STRING}}
+Analyze the provided HTML content and extract property listings with the following requirements:
 
-        HTML Content (trimmed for token limit):
-        {html_data[:100000]}
-        """
+- **Property Types:** Only include properties classified explicitly as Flat, Apartment, House, or Commercial. Exclude all other property types.
+- **Extract the following data points for each property:**
+    - **Title:** Clearly identified property title.
+    - **Description:** Full description text.
+    - **Price:** Exact price as displayed in HTML content (do NOT convert).
+    - **Price in USD:** Convert the extracted price to USD using the conversion rate provided: {covert_price_to_dollar}.
+    - **Square Meters (Area):** Extract explicitly provided area in square meters. If area is missing, estimate reasonably using property title and description.
+    - **Price per Square Meter in USD:** Calculate by dividing "Price in USD" by "Square Meters".
+    - **Details URL:** Full URL link to the property's details page.
+
+- **Output Format:** Return a JSON-formatted list of property entries without wrapping it in markdown or ```json.
+
+- **Number of Results:** Provide between 10 and 20 properties. If fewer than 10 properties are found, return as many as available.
+
+Use the following exact JSON structure for each property:
+
+{{
+    "title": "STRING",
+    "description": "STRING",
+    "price": "MONEY",
+    "price_in_USD": "MONEY",
+    "square_meter": INTEGER,
+    "per_square_meter_in_USD": "MONEY",
+    "details_url": "STRING"
+}}
+
+HTML Content (trimmed to fit token limit):
+{html_data[:100000]}
+"""
+
 
         response = await client.chat.completions.create(
             model=CHATGPT_MODEL,
