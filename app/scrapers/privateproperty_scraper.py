@@ -20,9 +20,16 @@ class PrivatePropertyScraper(BaseScraper):
             }
             # response = requests.get(url, headers=headers, timeout=30)
             response = self.safe_request(url, headers)
-            if response is None:
-                fallback_scraper(url)
-                # return []  # Indicates error to caller
+            soup = BeautifulSoup(response.text, 'html.parser')
+            cards = soup.select('a.listing-result')
+            if response is None or not cards or len(cards) == 0:
+                logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from request")
+                response = fallback_scraper(url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                cards = soup.select('a.listing-result')
+                if response is None or not cards or len(cards) == 0:
+                    logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
+                    return []  # Indicates error to caller
             
             file_path = LOG_DIR / f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
@@ -35,8 +42,6 @@ class PrivatePropertyScraper(BaseScraper):
 
         logger.info("✅ [PrivatePropertyScraper] Page loaded. Parsing...")
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        cards = soup.select('a.listing-result')
         base_url = 'https://www.privateproperty.co.za'
         properties = []
 

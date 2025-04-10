@@ -21,9 +21,17 @@ class Property24Scraper(BaseScraper):
             }
            # response = requests.get(url, headers=headers, timeout=30)
             response = self.safe_request(url, headers)
-            if response is None:
-                fallback_scraper(url)
-                # return []  # Indicates error to caller
+            soup = BeautifulSoup(response.text, 'html.parser')
+            cards = soup.select('a.p24_content')
+            if response is None  or not cards or len(cards) == 0:
+                logger.info(f"❌ [Property24Scraper] Failed to fetch HTML from request")
+                response = fallback_scraper(url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                cards = soup.select('a.p24_content')
+                if response is None or not cards or len(cards) == 0:
+                    logger.info(f"❌ [Property24Scraper] Failed to fetch HTML from scraper api")
+                    return []  # Indicates error to caller
+
             
             file_path = LOG_DIR / f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
@@ -36,8 +44,6 @@ class Property24Scraper(BaseScraper):
 
         logger.info("✅ Page loaded. Parsing HTML...")
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        cards = soup.select('a.p24_content')
         base_url = 'https://www.property24.com'
 
         properties = []
