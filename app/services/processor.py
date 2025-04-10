@@ -23,6 +23,9 @@ SCRAPER_REGISTRY = {
     'privateproperty.co.za': PrivatePropertyScraper(),
 }
 
+# cache dictionary for currency conversion
+conversion_cache = {}
+
 def extract_domain(link):
     try:
         domain = urlparse(link).netloc.lower()
@@ -33,22 +36,30 @@ def extract_domain(link):
         return ""
 
 async def cost_in_dollar(country):
-    logger.info("📊 [cost_in_dollar] Starting conversion fetch...")
+    if country in conversion_cache:
+        logger.info(f"📦 [cost_in_dollar] Using cached rate for {country}")
+        return conversion_cache[country]
+
+    logger.info(f"📊 [cost_in_dollar] Fetching conversion rate for {country}...")
     params = {
         "engine": "google",
         "q": f"1 {country} currency in USD",
         "api_key": SERP_API_KEY,
     }
-    search1 = GoogleSearch(params)
-    results1 = search1.get_dict()
-    organic_results1 = results1.get("organic_results", [])
-    wise_snippets = [result['snippet_highlighted_words'] for result in organic_results1 if result.get('source') == 'Wise']
+
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    organic_results = results.get("organic_results", [])
+    wise_snippets = [result['snippet_highlighted_words'] for result in organic_results if result.get('source') == 'Wise']
 
     if wise_snippets:
-        logger.info(f"✅ [cost_in_dollar] Snippet fetched: {wise_snippets[0]}")
-        return wise_snippets[0]
+        rate = wise_snippets[0]
+        conversion_cache[country] = rate
+        logger.info(f"✅ [cost_in_dollar] Fetched and cached rate: {rate}")
+        return rate
 
-    logger.warning("⚠️ [cost_in_dollar] No conversion snippet found.")
+    logger.warning(f"⚠️ [cost_in_dollar] No conversion rate found for {country}. Using fallback.")
+    conversion_cache[country] = ["", "0 USD"]
     return ["", "0 USD"]
 
 async def get_scrap_results(country, city, address, price_in_dollars):
