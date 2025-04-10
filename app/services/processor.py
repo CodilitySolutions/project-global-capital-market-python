@@ -212,12 +212,27 @@ async def calculate_cost():
                     ))
                     logger.info("ℹ️ Used address analysis fallback (no image available).")
 
+                logger.warning(f"📊 [calculate_cost] Data: {data}")
                 db.update_cost_data(data)
 
             except Exception as e:
                 logger.exception(f"❌ Failed during address/image analysis or DB update: {e}")
         else:
-            logger.warning("❌ No valid scrap_results returned.")
+            data.append((
+                        accountid, 0, 0, 0,
+                        "",
+                        "",
+                        "",
+                        "address not found",
+                        "",
+                        "",
+                        0,
+                        address,
+                        ""
+                    ))
+            logger.warning(f"📊 [calculate_cost] Data: {data}")
+            db.update_cost_data(data)
+            logger.warning("❌ No valid scrap_results returned. updating DB with address not found.")
 
         await asyncio.sleep(5)
 
