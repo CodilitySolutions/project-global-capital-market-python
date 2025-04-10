@@ -24,7 +24,8 @@ class PrivatePropertyScraper(BaseScraper):
                 fallback_scraper(url)
                 # return []  # Indicates error to caller
             
-            with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
+            file_path = LOG_DIR / f"scraped_{i + 1}.html"
+            with open(file_path, "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 [PrivatePropertyScraper] HTML content saved to {file_path}")
             response.raise_for_status()
