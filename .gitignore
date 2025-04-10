@@ -174,3 +174,12 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Ignore files starting with 'scraped_' and ending with '.html'
+scraped_*.html
+
+# Ignore files starting with 'openai__' and ending with '.text'
+openai_*.txt
+
+# Ignore .DS_Store files
+.DS_Store

@@ -35,8 +35,9 @@ class Database:
             print("Error:", e)
 
     def read_user_data(self):
-        query="""select accountid, country, city, address from report.vtiger_account a 
-            where country IN ('South Africa', 'Nigeria') AND address='ugbuwangue' AND client_qualification_date>'2024-01-01 00:00:01';
+        query = """SELECT accountid, country, city, address 
+            FROM report.vtiger_account a 
+            WHERE country IN ('South Africa') AND client_qualification_date>'2023-01-01 00:00:01' and accountid not in (select accountid from [dbo].[client_location_cost] WHERE modified_date is not null);
         """
         # and not exists (select 1 from [dbo].[client_location_cost] b WHERE a.accountid = b.accountid);
 
@@ -46,6 +47,15 @@ class Database:
         records = cursor.fetchall()
         print("Client records: ", len(records))
         return records
+    
+    def read_property_sites_data(self, country, city, address):
+        query = "SELECT STRING_AGG(property_sites.property_url, ' ') AS property_urls FROM dbo.property_sites WHERE country = %s"
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, country)
+
+        records = cursor.fetchall()
+        return records[0]['property_urls']
 
     def read_client(self, accountid):
         query = "SELECT * FROM report.vtiger_account WHERE accountid = %s"
@@ -70,14 +80,34 @@ class Database:
             print('records[0]["client_neighborhood"]: ', records[0]["client_neighborhood"])
 
             if records[0]["client_neighborhood"] != data[0][1] or records[0]["street_cost_sqm"] != str(data[0][2]):
-                query = f"UPDATE [dbo].[client_location_cost] SET client_neighborhood='{data[0][1]}', street_cost_sqm={data[0][2]}, object='{data[0][3]}', area_type='{data[0][4]}', street_people_type='{data[0][5]}', property_type='{data[0][6]}', is_valid={data[0][7]} WHERE accountid = {data[0][0]};"
+                # query = f"UPDATE [dbo].[client_location_cost] SET client_neighborhood='{data[0][1]}', street_cost_sqm={data[0][2]}, object='{data[0][3]}', area_type='{data[0][4]}', street_people_type='{data[0][5]}', property_type='{data[0][6]}', is_valid={data[0][7]}, modified_date='' WHERE accountid = {data[0][0]};"
+                query = f"""
+                    UPDATE [dbo].[client_location_cost]
+                    SET 
+                        client_neighborhood='{data[0][1]}',
+                        street_cost_sqm={data[0][2]},
+                        object='{data[0][3]}',
+                        area_type='{data[0][4]}',
+                        street_people_type='{data[0][5]}',
+                        image_people_type='{data[0][6]}',
+                        property_type='{data[0][6]}',
+                        is_valid={data[0][7]},
+                        modified_date=GETDATE()
+                    WHERE accountid = {data[0][0]};
+                    """
+
                 cursor.execute(query)
                 self.conn.commit()
                 print("Client updated")
             else:
                 print("Client skipped")
         else:
-            query = "INSERT INTO [dbo].[client_location_cost] (accountid, client_neighborhood, street_cost_sqm, object, area_type, street_people_type, property_type, is_valid) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            # query = "INSERT INTO [dbo].[client_location_cost] (accountid, client_neighborhood, street_cost_sqm, object, area_type, street_people_type, property_type, is_valid) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            query = """
+                INSERT INTO [dbo].[client_location_cost] 
+                (accountid, client_neighborhood, street_cost_sqm, object, area_type, street_people_type, property_type, is_valid, modified_date) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, GETDATE())
+                """
             cursor.executemany(query, data)
             self.conn.commit()
             print("Client inserted")
@@ -90,12 +120,26 @@ class Database:
         records = cursor.fetchall()
 
         if records[0]["TOTAL"] > 0:
-            query = f"UPDATE [dbo].[client_location_cost] SET street_cost_sqm={data[0][1]}, is_valid={data[0][2]} WHERE accountid = {data[0][0]};"
+            # query = f"UPDATE [dbo].[client_location_cost] SET street_cost_sqm={data[0][1]}, is_valid={data[0][2]} WHERE accountid = {data[0][0]};"
+            query = f"""
+                UPDATE [dbo].[client_location_cost]
+                SET 
+                    street_cost_sqm={data[0][1]},
+                    is_valid={data[0][2]},
+                    modified_date=GETDATE()
+                WHERE accountid = {data[0][0]};
+            """
+            print('query: ', query)
             cursor.execute(query)
             self.conn.commit()
             print("Cost updated")
         else:
-            query = "INSERT INTO [dbo].[client_location_cost] (accountid, street_cost_sqm, is_valid) VALUES (%s, %s, %s)"
+            # query = "INSERT INTO [dbo].[client_location_cost] (accountid, street_cost_sqm, is_valid) VALUES (%s, %s, %s)"
+            query = """
+                INSERT INTO [dbo].[client_location_cost] 
+                (accountid, street_cost_sqm, is_valid, modified_date) 
+                VALUES (%s, %s, %s, GETDATE())
+                """
             cursor.executemany(query, data)
             self.conn.commit()
             print("Cost inserted")
@@ -114,9 +158,27 @@ class Database:
 
     def update_cost_data(self, data):
         cursor = self.conn.cursor()
-        query = f"UPDATE [dbo].[client_location_cost] SET neighborhood_cost_sqm='{data[0][1]}', street_cost_sqm='{data[0][2]}', build_cost_sqm='{data[0][3]}', image_people_type='{data[0][4]}', street_people_type='{data[0][5]}', neighbourhood_people_type='{data[0][6]}' WHERE accountid = {data[0][0]};"
-        cursor.execute(query)
-        self.conn.commit()
+        query = "SELECT COUNT(*) AS TOTAL FROM [dbo].[client_location_cost] WHERE accountid = %s"
+        cursor.execute(query, data[0][0])
+        records = cursor.fetchall()
+
+        if records[0]["TOTAL"] > 0:
+            query = f"UPDATE [dbo].[client_location_cost] SET neighborhood_cost_sqm='{data[0][1]}', street_cost_sqm='{data[0][2]}', build_cost_sqm='{data[0][3]}', image_people_type='{data[0][4]}', street_people_type='{data[0][5]}', neighbourhood_people_type='{data[0][6]}', object='{data[0][7]}', area_type='{data[0][8]}', property_type='{data[0][9]}', is_valid='{data[0][10]}', modified_date=GETDATE(), client_neighborhood='{data[0][11]}', people_type='{data[0][12]}' WHERE accountid = {data[0][0]};"
+            print('update_cost_data query: ', query)
+            cursor.execute(query)
+            self.conn.commit()
+            print("executed update query")
+        else:
+            query = f"""
+                INSERT INTO [dbo].[client_location_cost] 
+                (accountid, neighborhood_cost_sqm, street_cost_sqm, build_cost_sqm, image_people_type, street_people_type, neighbourhood_people_type, object, area_type, property_type, is_valid, modified_date, client_neighborhood, people_type) 
+                VALUES 
+                ('{data[0][0]}', '{data[0][1]}', '{data[0][2]}', '{data[0][3]}', '{data[0][4]}', '{data[0][5]}', '{data[0][6]}', '{data[0][7]}', '{data[0][8]}', '{data[0][9]}', '{data[0][10]}', GETDATE(), '{data[0][11]}', '{data[0][12]}');
+            """
+            print('insert query: ', query)
+            cursor.execute(query)
+            self.conn.commit()
+            print("executed insert query")
         cursor.close()
 
         print("Client updated")
