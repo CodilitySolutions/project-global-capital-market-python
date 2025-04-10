@@ -83,11 +83,8 @@ async def get_scrap_results(country, city, address, price_in_dollars):
     logger.info(f"✅ [get_scrap_results] Found {len(links)} SERP links.")
 
     domain_priority = {
-        'property24.com': 1,
-        'privateproperty.co.za': 2,
-        'realtor.com': 3,
-        'zillow.com': 4,
-        'trulia.com': 5
+        'privateproperty.co.za': 1,
+        'property24.com': 2,
     }
 
     sorted_links = sorted(
