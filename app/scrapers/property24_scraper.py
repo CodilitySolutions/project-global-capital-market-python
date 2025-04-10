@@ -1,11 +1,13 @@
 from bs4 import BeautifulSoup
 import requests
 from app.scrapers.base import BaseScraper
+from app.settings.logger import logger
 
 class Property24Scraper(BaseScraper):
     def scrape(self, url: str, usd_rate: list, i: int) -> list:
-        print("\n🤖 function fetch_properties_property24 started ...")
-        print("Fetching page...")
+        logger.info("🤖 [Property24Scraper] Scraper started...")
+        logger.info("🌍 Fetching page...")
+
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -14,18 +16,16 @@ class Property24Scraper(BaseScraper):
             file_path = f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(response.text)
-            print(f"📂 HTML content saved to {file_path}")
-            response.raise_for_status()  # Raise an error for bad status codes
+            logger.info(f"📂 HTML content saved to {file_path}")
+            response.raise_for_status()
         except Exception as e:
-            print("❌ Failed to fetch HTML.", e)
+            logger.error(f"❌ [Property24Scraper] Failed to fetch HTML: {e}")
             return []
 
-        print("✅ Page loaded. Parsing...")
+        logger.info("✅ Page loaded. Parsing HTML...")
+
         soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Get all cards that are likely to be properties
-        cards = soup.select('a.p24_content')  # More general selector
-
+        cards = soup.select('a.p24_content')
         base_url = 'https://www.property24.com'
 
         properties = []
@@ -49,10 +49,9 @@ class Property24Scraper(BaseScraper):
                 property_url = base_url + relative_url
 
                 if price > 0:
-                    usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])  # Extract the numeric value from the list
-                    print(f"price * usd_rate: {price * usd_rate_value}")
-                    # print(f"((price/square_meters)*usd_rate): {(price/square_meters)*usd_rate_value}")
-                    per_sqm = 0 if square_meters == 0 else round((price/square_meters)*usd_rate_value)
+                    usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])
+                    logger.debug(f"[Property24Scraper] price * usd_rate: {price * usd_rate_value}")
+                    per_sqm = 0 if square_meters == 0 else round((price / square_meters) * usd_rate_value)
                     properties.append({
                         'title': title,
                         'description': description,
@@ -62,7 +61,8 @@ class Property24Scraper(BaseScraper):
                         'per_square_meter_in_USD': per_sqm,
                         'details_url': property_url,
                     })
+
             except Exception as e:
-                print(f"⚠️ Error parsing card: {e}")
+                logger.warning(f"⚠️ [Property24Scraper] Error parsing card: {e}")
 
         return properties
