@@ -3,6 +3,7 @@ import requests
 from app.scrapers.base import BaseScraper
 from app.settings.logger import logger
 from pathlib import Path
+from app.scrapers.utils import fallback_scraper
 
 LOG_DIR = Path(__file__).resolve().parent.parent / "log"
 LOG_DIR.mkdir(exist_ok=True)
@@ -17,7 +18,12 @@ class PrivatePropertyScraper(BaseScraper):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(url, headers=headers, timeout=30)
+            # response = requests.get(url, headers=headers, timeout=30)
+            response = self.safe_request(url, headers)
+            if response is None:
+                fallback_scraper(url)
+                # return []  # Indicates error to caller
+            
             with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 [PrivatePropertyScraper] HTML content saved to {file_path}")

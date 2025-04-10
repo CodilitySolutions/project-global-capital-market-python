@@ -3,6 +3,7 @@ import requests
 from app.scrapers.base import BaseScraper
 from app.settings.logger import logger
 from pathlib import Path
+from app.scrapers.utils import fallback_scraper
 
 LOG_DIR = Path(__file__).resolve().parent.parent / "log"
 LOG_DIR.mkdir(exist_ok=True)
@@ -14,10 +15,16 @@ class Property24Scraper(BaseScraper):
         logger.info("🌍 Fetching page...")
 
         try:
+            usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(url, headers=headers, timeout=30)
+           # response = requests.get(url, headers=headers, timeout=30)
+            response = self.safe_request(url, headers)
+            if response is None:
+                fallback_scraper(url)
+                # return []  # Indicates error to caller
+            
             with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 HTML content saved to {file_path}")
@@ -53,7 +60,6 @@ class Property24Scraper(BaseScraper):
                 property_url = base_url + relative_url
 
                 if price > 0:
-                    usd_rate_value = float(usd_rate[0].split(',')[1].strip().split(' ')[0])
                     logger.debug(f"[Property24Scraper] price * usd_rate: {price * usd_rate_value}")
                     per_sqm = 0 if square_meters == 0 else round((price / square_meters) * usd_rate_value)
                     properties.append({
