@@ -32,15 +32,27 @@ class Property24Scraper(BaseScraper):
                     logger.info(f"❌ [Property24Scraper] Failed to fetch HTML from scraper api")
                     return []  # Indicates error to caller
 
-            
+        except Exception as e:
+            logger.error(f"❌ [Property24Scraper] Failed to fetch HTML: {e}")
+            try:
+                response = fallback_scraper(url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                cards = soup.select('a.p24_content')
+                if response is None or not cards or len(cards) == 0:
+                    logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
+                    return []  # Indicates error to caller
+            except Exception as e:
+                return []
+
+
+        try:
             file_path = LOG_DIR / f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(response.text)
-            logger.info(f"📂 HTML content saved to {file_path}")
+            logger.info(f"📂 [Property24Scraper] HTML content saved to {file_path}")
             response.raise_for_status()
         except Exception as e:
-            logger.error(f"❌ [Property24Scraper] Failed to fetch HTML: {e}")
-            return []
+            logger.error(f"❌ [Property24Scraper] Failed to write HTML: {e}")
 
         logger.info("✅ Page loaded. Parsing HTML...")
 

@@ -30,15 +30,27 @@ class PrivatePropertyScraper(BaseScraper):
                 if response is None or not cards or len(cards) == 0:
                     logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
                     return []  # Indicates error to caller
+        except Exception as e:
+            logger.error(f"❌ [PrivatePropertyScraper] Failed to fetch HTML: {e}")
+            try:
+                response = fallback_scraper(url)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                cards = soup.select('a.listing-result')
+                if response is None or not cards or len(cards) == 0:
+                    logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
+                    return []  # Indicates error to caller
+            except Exception as e:
+                return []
             
+        try:
             file_path = LOG_DIR / f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 [PrivatePropertyScraper] HTML content saved to {file_path}")
             response.raise_for_status()
         except Exception as e:
-            logger.error(f"❌ [PrivatePropertyScraper] Failed to fetch HTML: {e}")
-            return []
+            logger.error(f"❌ [PrivatePropertyScraper] Failed to write HTML: {e}")
+
 
         logger.info("✅ [PrivatePropertyScraper] Page loaded. Parsing...")
 
