@@ -18,7 +18,8 @@ class PrivatePropertyScraper(BaseScraper):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
             response = requests.get(url, headers=headers, timeout=30)
-            with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
+            file_path = LOG_DIR / f"scraped_{i + 1}.html"
+            with open(file_path, "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 [PrivatePropertyScraper] HTML content saved to {file_path}")
             response.raise_for_status()

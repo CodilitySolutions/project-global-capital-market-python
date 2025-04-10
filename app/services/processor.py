@@ -102,7 +102,8 @@ async def get_scrap_results(country, city, address, price_in_dollars):
                 html_data = await fetch_html(link_url)
                 logger.info(f"✅ HTML content fetched from link {i + 1}")
 
-                with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
+                file_path = LOG_DIR / f"scraped_{i + 1}.html"
+                with open(file_path, "w", encoding="utf-8") as file:
                     file.write(html_data)
 
                 logger.info(f"📂 HTML saved to {file_path}")
