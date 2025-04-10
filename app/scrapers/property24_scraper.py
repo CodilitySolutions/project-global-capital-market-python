@@ -2,6 +2,11 @@ from bs4 import BeautifulSoup
 import requests
 from app.scrapers.base import BaseScraper
 from app.settings.logger import logger
+from pathlib import Path
+
+LOG_DIR = Path(__file__).resolve().parent.parent / "log"
+LOG_DIR.mkdir(exist_ok=True)
+
 
 class Property24Scraper(BaseScraper):
     def scrape(self, url: str, usd_rate: list, i: int) -> list:
@@ -13,8 +18,7 @@ class Property24Scraper(BaseScraper):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
             response = requests.get(url, headers=headers, timeout=30)
-            file_path = f"scraped_{i + 1}.html"
-            with open(file_path, "w", encoding="utf-8") as file:
+            with open(LOG_DIR / f"scraped_{i + 1}.html", "w", encoding="utf-8") as file:
                 file.write(response.text)
             logger.info(f"📂 HTML content saved to {file_path}")
             response.raise_for_status()
