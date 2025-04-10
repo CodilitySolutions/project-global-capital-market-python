@@ -5,3 +5,4 @@ pillow==11.1.0
 requests==2.32.3
 beautifulsoup4
 serpapi  # or 'google-search-results', not both
+google-search-results
