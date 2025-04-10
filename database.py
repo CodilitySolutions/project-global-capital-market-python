@@ -37,7 +37,7 @@ class Database:
     def read_user_data(self):
         query = """SELECT accountid, country, city, address 
             FROM report.vtiger_account a 
-            WHERE country IN ('South Africa') AND client_qualification_date>'2023-01-01 00:00:01' and accountid not in (select accountid from [dbo].[client_location_cost] WHERE modified_date is not null);
+            WHERE country IN ('South Africa') AND client_qualification_date>'2023-01-01 00:00:01' AND address='Street';
         """
         # and not exists (select 1 from [dbo].[client_location_cost] b WHERE a.accountid = b.accountid);
 
