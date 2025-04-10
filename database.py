@@ -4,7 +4,7 @@ import pymssql
 from app.settings.logger import logger
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, "dot.env"))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 server = os.getenv("DB_HOST")
 database = os.getenv("DB_NAME")
