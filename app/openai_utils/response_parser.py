@@ -1,5 +1,6 @@
 import json
 import re
+from app.settings.logger import logger
 
 def parse_response(response_text):
     try:
@@ -14,23 +15,25 @@ def parse_response(response_text):
         # Convert string to JSON
         response_json = json.loads(response_text)
 
-        print('Parsed Data --------get_average_price_people_type---: ', response_json)
+        logger.info("[parse_response] Parsed JSON successfully.")
+        logger.debug(f"[parse_response] Full parsed data: {response_json}")
 
-        # Extract and convert "average" safely
+        # Extract and log key fields
         average = response_json.get("average", "")
         street_people_type = response_json.get("street_people_type", "")
         property_type = response_json.get("property_type", "")
         neighbourhood_people_type = response_json.get("neighbourhood_people_type", "")
-        print('extracted average: ', average)
-        print('extracted street_people_type: ', street_people_type)
-        print('extracted property_type: ', property_type)
-        print('extracted neighbourhood_people_type: ', neighbourhood_people_type)
-        # return int(float(average)) if average else ""  # Convert safely
+
+        logger.info(f"[parse_response] Extracted average: {average}")
+        logger.info(f"[parse_response] Extracted street_people_type: {street_people_type}")
+        logger.info(f"[parse_response] Extracted property_type: {property_type}")
+        logger.info(f"[parse_response] Extracted neighbourhood_people_type: {neighbourhood_people_type}")
+
         return response_json
 
     except json.JSONDecodeError:
-        print("Failed to parse OpenAI response as JSON. Raw response:", response_text)
-    except ValueError:
-        print("Failed to convert average to whole number. Raw average:", average)
+        logger.warning(f"[parse_response] Failed to parse OpenAI response as JSON. Raw response: {response_text}")
+    except ValueError as e:
+        logger.warning(f"[parse_response] Failed to convert average. Error: {e}")
 
     return ""

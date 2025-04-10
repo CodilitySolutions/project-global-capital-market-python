@@ -1,10 +1,12 @@
 from app.openai_utils.assistant_client import client
 from app.settings.config import CHATGPT_MODEL
 from app.openai_utils.response_parser import parse_response
+from app.settings.logger import logger
 
 async def get_average_price_people_type(scaped_responses):
-    print("\n📊 function get_average_price_people_type started ...")
-    average_prompt = scaped_responses+"""\n\nThe input text contains multiple OpenAI responses generated from scraped data across various property listing websites.
+    logger.info("📊 [get_average_price_people_type] Function started.")
+
+    average_prompt = scaped_responses + """\n\nThe input text contains multiple OpenAI responses generated from scraped data across various property listing websites.
 
 1. From the input text, **only extract the responses that are in valid JSON format** matching this structure:
 {
@@ -48,24 +50,23 @@ Applicable fields:
 - people_type
 - neighbourhood_people_type
 """
-    # response = await get_openai_response(average_prompt)
-    response = await client.chat.completions.create(
-        model=CHATGPT_MODEL,
-        temperature=0,
-    messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": average_prompt,
-                    }
-                ],
-            }
-        ],
-    )
 
-    response_text = parse_response(response.choices[0].message.content)
-    print('response_text from parse_response: ', response_text)
+    try:
+        response = await client.chat.completions.create(
+            model=CHATGPT_MODEL,
+            temperature=0,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": average_prompt}],
+                }
+            ],
+        )
 
-    return response_text
+        response_text = parse_response(response.choices[0].message.content)
+        logger.info(f"[get_average_price_people_type] Parsed OpenAI response: {response_text}")
+        return response_text
+
+    except Exception as e:
+        logger.exception(f"❌ [get_average_price_people_type] Error communicating with OpenAI: {e}")
+        return {}

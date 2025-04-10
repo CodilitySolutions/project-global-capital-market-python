@@ -1,12 +1,14 @@
 import base64
+import json
 from PIL import Image
 from io import BytesIO
 import httpx
 from app.openai_utils.assistant_client import client
 from app.settings.config import GOOGLE_MAP_API_KEY, CHATGPT_MODEL
+from app.settings.logger import logger
 
 async def analyse_location_image(address):
-    print("\n🤖 function analyse_location_image started ...")
+    logger.info("🤖 [analyse_location_image] Function started.")
     is_valid = False
     geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {
@@ -14,45 +16,47 @@ async def analyse_location_image(address):
         "key": GOOGLE_MAP_API_KEY
     }
 
-    geocode_request = httpx.AsyncClient()
-    geocode_response = await geocode_request.get(geocode_url, params=params)
-    geocode_response = geocode_response.json()
+    try:
+        geocode_request = httpx.AsyncClient()
+        geocode_response = await geocode_request.get(geocode_url, params=params)
+        geocode_response = geocode_response.json()
+    except Exception as e:
+        logger.error(f"❌ [analyse_location_image] Failed to get geocode response: {e}")
+        return {'object': '', 'area_type': '', 'image_people_type': '', 'property_type': ''}, False
 
     response = {'object': '', 'area_type': '', 'image_people_type': '', 'property_type': ''}
 
     if geocode_response["status"] == "OK":
-
         location = geocode_response["results"][0]["geometry"]["location"]
         lat, lon = location["lat"], location["lng"]
-
         street_view_url = f"https://maps.googleapis.com/maps/api/streetview?size=600x400&location={lat},{lon}&key={GOOGLE_MAP_API_KEY}"
 
-        street_view_request = httpx.AsyncClient()
-        street_view_response = await street_view_request.get(street_view_url)
+        try:
+            street_view_request = httpx.AsyncClient()
+            street_view_response = await street_view_request.get(street_view_url)
 
-        if street_view_response.status_code == 200:
-            image = Image.open(BytesIO(street_view_response.content))
-            #image.save("street_view.png")
-            buffered = BytesIO()
-            image.save(buffered, format="PNG")
+            if street_view_response.status_code == 200:
+                image = Image.open(BytesIO(street_view_response.content))
+                buffered = BytesIO()
+                image.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            # print('img_str: ', img_str)
+                logger.info("[analyse_location_image] Image fetched successfully, sending to OpenAI...")
 
-            response = await client.chat.completions.create(
-    model=CHATGPT_MODEL,
-    temperature=0,
-    messages=[
-        {
-            "role": "system",
-            "content": "You are an expert in property image analysis and socio-economic categorization."
-        },
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": """
+                ai_response = await client.chat.completions.create(
+                    model=CHATGPT_MODEL,
+                    temperature=0,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an expert in property image analysis and socio-economic categorization."
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": """
 Analyze the provided image and return a response strictly in the JSON format described below:
 
 - Extract the following details from the image clearly and explicitly:
@@ -72,31 +76,34 @@ Ensure the JSON response is formatted exactly as follows and do not wrap with ma
     "property_type": "STRING"
 }
 """
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{img_str}"
-                    }
-                },
-            ],
-        }
-    ],
-)
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{img_str}"
+                                    }
+                                },
+                            ],
+                        }
+                    ],
+                )
 
-            response = response.choices[0].message.content
+                response = ai_response.choices[0].message.content
 
-            if type(response) != "json":
-                try:
-                    response = json.loads(response.replace("'", "\""))
-                    is_valid = True
-                    print('Data: ', response)
-                except:
-                    print("Failed to get address analyse response")
+                if type(response) != "json":
+                    try:
+                        response = json.loads(response.replace("'", "\""))
+                        is_valid = True
+                        logger.info(f"[analyse_location_image] AI response parsed successfully: {response}")
+                    except Exception as e:
+                        logger.warning(f"[analyse_location_image] Failed to parse AI response: {e}")
 
-        else:
-            print("Failed to get location image")
+            else:
+                logger.error("[analyse_location_image] Failed to fetch location image from Google Street View.")
+
+        except Exception as e:
+            logger.error(f"[analyse_location_image] Error while processing Street View image: {e}")
     else:
-        print("Failed to get latitude and longitude")
+        logger.warning("[analyse_location_image] Failed to get latitude and longitude from geocoding API.")
 
     return response, is_valid

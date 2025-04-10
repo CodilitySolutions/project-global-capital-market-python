@@ -2,36 +2,45 @@ import re
 import requests
 from app.openai_utils.assistant_client import client
 from app.settings.config import CHATGPT_MODEL
+from app.settings.logger import logger
 
 async def fetch_html(url):
-    print("\n🤖 function fetch_html started ...")
+    logger.info("🤖 [fetch_html] Function started...")
+
     if url.lower().endswith('.pdf'):
-        print('No need to scrap those')
+        logger.info("🛑 [fetch_html] PDF file detected, skipping scraping.")
         return None
 
     try:
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        response.raise_for_status()  # Raise error for failed requests (4xx, 5xx)
-        html_content = response.text  # Get the HTML content
+        response.raise_for_status()
+        html_content = response.text
 
-        # Remove head tag and its content, keep only body tag and its content
         body_content = re.search(r'<body.*?>(.*?)</body>', html_content, re.DOTALL | re.IGNORECASE)
         if body_content:
+            logger.info("✅ [fetch_html] Body content extracted successfully.")
             return body_content.group(1)
         else:
-            return html_content  # Return original content if body tag not found
+            logger.warning("⚠️ [fetch_html] <body> tag not found, returning full HTML content.")
+            return html_content
+
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching HTML from {url}: {e}")
-        return None  # Return None if request fails
+        logger.error(f"❌ [fetch_html] Error fetching HTML from {url}: {e}")
+        return None
 
 async def fetch_openAI_results(filename, covert_price_to_dollar):
-    print("\n🤖 function fetch_openAI_results started ...")
-    print('covert_price_to_dollar: ', covert_price_to_dollar)
-    # Read the saved file content
-    with open(filename, "r", encoding="utf-8") as file:
-        html_data = file.read()
+    logger.info("🤖 [fetch_openAI_results] Function started.")
+    logger.info(f"💰 USD conversion rate used: {covert_price_to_dollar}")
+
+    try:
+        with open(filename, "r", encoding="utf-8") as file:
+            html_data = file.read()
+    except Exception as e:
+        logger.error(f"❌ [fetch_openAI_results] Failed to read file {filename}: {e}")
+        return ""
+
     if html_data:
-        print("\n🤖 Processing HTML content with OpenAI API...")
+        logger.info("📤 [fetch_openAI_results] Sending HTML content to OpenAI API...")
 
         prompt = f"""
 Analyze the provided HTML content and extract property listings with the following requirements:
@@ -66,18 +75,23 @@ HTML Content (trimmed to fit token limit):
 {html_data[:100000]}
 """
 
+        try:
+            response = await client.chat.completions.create(
+                model=CHATGPT_MODEL,
+                temperature=0,
+                messages=[
+                    {"role": "system", "content": "You are an expert in property analysis and pricing."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-        response = await client.chat.completions.create(
-            model=CHATGPT_MODEL,
-            temperature=0,
-    messages=[
-                {"role": "system", "content": "You are an expert in property analysis and pricing."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+            json_response = response.choices[0].message.content
+            logger.info("✅ [fetch_openAI_results] Received response from OpenAI.")
+            return json_response
 
-        json_response = response.choices[0].message.content
-        #   sprint("\n📊 OpenAI Response:\n", json_response)
+        except Exception as e:
+            logger.exception(f"❌ [fetch_openAI_results] OpenAI API call failed: {e}")
+            return ""
     else:
-        print("❌ No HTML content to process.")
-    return json_response
+        logger.warning("❌ [fetch_openAI_results] No HTML content to process.")
+        return
