@@ -146,6 +146,7 @@ class Database:
         records = cursor.fetchall()
 
         if records[0]["TOTAL"] > 0:
+            logger.info(f"📝 Updating cost data for account {data[0][0]}")
             query = f"""
                 UPDATE [dbo].[client_location_cost]
                 SET 
@@ -164,19 +165,25 @@ class Database:
                     people_type = '{data[0][12]}'
                 WHERE accountid = {data[0][0]};
             """
-            logger.debug(f"🧾 Update Query: {query}")
+            logger.info(f"🧾 Update Query: {query}")
             cursor.execute(query)
             self.conn.commit()
             logger.info(f"📝 Updated cost data for account {data[0][0]}")
         else:
-            query = f"""
-                INSERT INTO [dbo].[client_location_cost] 
-                (accountid, neighborhood_cost_sqm, street_cost_sqm, build_cost_sqm, image_people_type, street_people_type, neighbourhood_people_type, object, area_type, property_type, is_valid, modified_date, client_neighborhood, people_type) 
-                VALUES 
-                ('{data[0][0]}', '{data[0][1]}', '{data[0][2]}', '{data[0][3]}', '{data[0][4]}', '{data[0][5]}', '{data[0][6]}', '{data[0][7]}', '{data[0][8]}', '{data[0][9]}', '{data[0][10]}', GETDATE(), '{data[0][11]}', '{data[0][12]}');
-            """
-            logger.debug(f"🧾 Insert Query: {query}")
-            cursor.execute(query)
+            logger.info(f"➕ Inserting cost data for account {data[0][0]}")
+            query = """INSERT INTO [dbo].[client_location_cost] 
+                (accountid, neighborhood_cost_sqm, street_cost_sqm, build_cost_sqm, image_people_type, 
+                street_people_type, neighbourhood_people_type, object, area_type, property_type, 
+                is_valid, modified_date, client_neighborhood, people_type) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, GETDATE(), %s, %s);"""
+
+            params = (
+                data[0][0], data[0][1], data[0][2], data[0][3], data[0][4],
+                data[0][5], data[0][6], data[0][7], data[0][8], data[0][9],
+                data[0][10], data[0][11], data[0][12]
+            )
+
+            cursor.execute(query, params)
             self.conn.commit()
             logger.info(f"➕ Inserted cost data for account {data[0][0]}")
         cursor.close()
