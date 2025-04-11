@@ -27,7 +27,7 @@ async def get_average_price_people_type(scaped_responses):
   "average": INTEGER, // average price per square meter in USD
   "median": INTEGER,  // median price per square meter in USD
   "street_people_type": STRING,        // e.g., "Wealthy", "Upper Class", etc.
-  "property_type": STRING,             // e.g., "Wealthy", "Upper Class", etc.
+  "property_type": STRING,             // e.g., Specifically classify the property type shown (e.g., luxurious home, row house, apartment building, commercial office, shop, etc.).
   "people_type": STRING,               // e.g., "Wealthy", "Upper Class", etc.
   "neighbourhood_people_type": STRING  // e.g., "Wealthy", "Upper Class", etc.
 }
@@ -46,7 +46,6 @@ async def get_average_price_people_type(scaped_responses):
 
 Applicable fields:
 - street_people_type
-- property_type
 - people_type
 - neighbourhood_people_type
 """

@@ -75,6 +75,14 @@ Ensure the JSON response is formatted exactly as follows and do not wrap with ma
     "image_people_type": "STRING",
     "property_type": "STRING"
 }
+8. The following fields can **only** have one of these four exact string values:
+    - "Wealthy"
+    - "Upper Class"
+    - "Mid Class"
+    - "Low Class"
+
+Applicable fields:
+- image_people_type
 """
                                 },
                                 {
