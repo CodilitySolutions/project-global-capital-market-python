@@ -18,30 +18,22 @@ class PrivatePropertyScraper(BaseScraper):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            # response = requests.get(url, headers=headers, timeout=30)
             response = self.safe_request(url, headers)
+
+            if response is None or response.status_code != 200:
+                logger.info(f"❌ [PrivatePropertyScraper] Response invalid or failed. Trying fallback_scraper...")
+                response = fallback_scraper(url)
+
             soup = BeautifulSoup(response.text, 'html.parser')
             cards = soup.select('a.listing-result')
             if response is None or not cards or len(cards) == 0:
-                logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from request")
-                response = fallback_scraper(url)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                cards = soup.select('a.listing-result')
-                if response is None or not cards or len(cards) == 0:
-                    logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
-                    return []  # Indicates error to caller
-        except Exception as e:
-            logger.error(f"❌ [PrivatePropertyScraper] Failed to fetch HTML: {e}")
-            try:
-                response = fallback_scraper(url)
-                soup = BeautifulSoup(response.text, 'html.parser')
-                cards = soup.select('a.listing-result')
-                if response is None or not cards or len(cards) == 0:
-                    logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from scraper api")
-                    return []  # Indicates error to caller
-            except Exception as e:
+                logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from both sources")
                 return []
-            
+
+        except Exception as e:
+            logger.error(f"❌ [PrivatePropertyScraper] Unexpected error: {e}")
+            return []
+
         try:
             file_path = LOG_DIR / f"scraped_{i + 1}.html"
             with open(file_path, "w", encoding="utf-8") as file:
@@ -50,7 +42,6 @@ class PrivatePropertyScraper(BaseScraper):
             response.raise_for_status()
         except Exception as e:
             logger.error(f"❌ [PrivatePropertyScraper] Failed to write HTML: {e}")
-
 
         logger.info("✅ [PrivatePropertyScraper] Page loaded. Parsing...")
 
@@ -63,7 +54,7 @@ class PrivatePropertyScraper(BaseScraper):
                 title = title_tag.get_text(strip=True) if title_tag else 'N/A'
 
                 price_tag = card.select_one('.listing-result__price')
-                price_text = price_tag.get_text(strip=True).replace('R', '').replace(' ', '').replace(' ', '')
+                price_text = price_tag.get_text(strip=True).replace('R', '').replace('\u00a0', '').replace(' ', '')
                 price = int(price_text) if price_text.isdigit() else 0
 
                 desc_tag = card.select_one('.listing-result__description')
