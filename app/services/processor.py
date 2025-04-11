@@ -194,8 +194,8 @@ async def calculate_cost():
                     data.append((
                         accountid, neighborhood_cost, street_cost, 0,
                         str(response["image_people_type"]),
-                        str(scrap_results.get("street_people_type", analyse_address_response.get("street_people_type", ""))),
-                        str(scrap_results.get("neighbourhood_people_type", analyse_address_response.get("neighbourhood_people_type", ""))),
+                        str(analyse_address_response.get("street_people_type", scrap_results.get("street_people_type", ""))),
+                        str(analyse_address_response.get("neighbourhood_people_type", scrap_results.get("neighbourhood_people_type", ""))),
                         str(response["object"]),
                         str(response["area_type"]),
                         str(response["property_type"]),
@@ -209,14 +209,14 @@ async def calculate_cost():
                     data.append((
                         accountid, neighborhood_cost, street_cost, 0,
                         "",
-                        str(scrap_results.get("street_people_type", analyse_address_response.get("street_people_type", ""))),
-                        str(scrap_results.get("neighbourhood_people_type", analyse_address_response.get("neighbourhood_people_type", ""))),
+                        str(analyse_address_response.get("street_people_type", scrap_results.get("street_people_type", ""))),
+                        str(analyse_address_response.get("neighbourhood_people_type", scrap_results.get("neighbourhood_people_type", ""))),
                         "no imagery available",
                         str(analyse_address_response["area_type"]),
                         str(analyse_address_response["property_type"]),
                         1,
                         address,
-                        str(scrap_results.get("people_type", analyse_address_response.get("people_type", "")))
+                        str(analyse_address_response.get("people_type", scrap_results.get("people_type", "")))
                     ))
                     logger.info("ℹ️ Used address analysis fallback (no image available).")
 

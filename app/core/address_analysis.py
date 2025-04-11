@@ -82,11 +82,29 @@ async def analyse_address_using_openai(address):
                     {
                         "type": "text",
                         "text": (
-                            f"Address: {address}\nGive me response in this json format: "
-                            "{'area_type': 'commercial or residential', 'street_people_type': 'which type of peoples are living in the street like Wealthy, Upper Class, Mid Class, Low Class', "
-                            "'property_type': 'type of property in that area like luxurius home, raw house etc', 'people_type': 'which type of people are living in this address like Wealthy, Upper Class, Mid Class, Low Class', "
-                            "'neighbourhood_people_type': 'which type of people are living in the neighbourhood like Wealthy, Upper Class, Mid Class, Low Class'}\n"
-                            "Return the JSON formatted with {} and don't wrap with ```json."
+                            f"Address: {address}\n\n"
+                        "Analyze the given address and respond strictly with a JSON object matching this exact structure:\n"
+                        "{\n"
+                        '  "area_type": STRING,                  // Either "commercial" or "residential"\n'
+                        '  "street_people_type": STRING,         // Only "Wealthy", "Upper Class", "Mid Class", or "Low Class"\n'
+                        '  "property_type": STRING,              // Specifically classify the property type shown (e.g., luxurious home, row house, apartment building, commercial office, shop, etc.).\n'
+                        '  "people_type": STRING,                // Only "Wealthy", "Upper Class", "Mid Class", or "Low Class"\n'
+                        '  "neighbourhood_people_type": STRING   // Only "Wealthy", "Upper Class", "Mid Class", or "Low Class"\n'
+                        "}\n\n"
+                        "Rules for JSON response:\n"
+                        "1. Do NOT wrap your response in markdown or triple backticks.\n"
+                        "2. Each field must have exactly the specified values only.\n"
+                        "3. If unable to determine any field, Default to \"residential\" for area_type and Default to \"home\" for property_type.\n"
+                        "4. **Do not** wrap the final output in markdown syntax like triple backticks or `json`.\n"
+                        "5. The following fields can **only** have one of these four exact string values:\n"
+                        '   - "Wealthy"\n'
+                        '   - "Upper Class"\n'
+                        '   - "Mid Class"\n'
+                        '   - "Low Class"\n'
+                        "6. Applicable fields:\n"
+                        '   - street_people_type\n'
+                        '   - people_type\n'
+                        '   - neighbourhood_people_type\n'
                         ),
                     }
                 ],
