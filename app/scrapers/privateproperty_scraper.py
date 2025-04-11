@@ -29,6 +29,8 @@ class PrivatePropertyScraper(BaseScraper):
             if response is None or not cards or len(cards) == 0:
                 logger.info(f"❌ [PrivatePropertyScraper] Failed to fetch HTML from both sources")
                 return []
+            else:
+                logger.info(f"✅ [PrivatePropertyScraper] HTML fetched successfully. fallback_scraper used.")
 
         except Exception as e:
             logger.error(f"❌ [PrivatePropertyScraper] Unexpected error: {e}")
@@ -44,6 +46,7 @@ class PrivatePropertyScraper(BaseScraper):
             logger.error(f"❌ [PrivatePropertyScraper] Failed to write HTML: {e}")
 
         logger.info("✅ [PrivatePropertyScraper] Page loaded. Parsing...")
+        logger.info(f"✅ [PrivatePropertyScraper] total cards: {len(cards)}")
 
         base_url = 'https://www.privateproperty.co.za'
         properties = []
