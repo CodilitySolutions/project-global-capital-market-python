@@ -147,28 +147,35 @@ class Database:
 
         if records[0]["TOTAL"] > 0:
             logger.info(f"📝 Updating cost data for account {data[0][0]}")
-            query = f"""
+            query = """
                 UPDATE [dbo].[client_location_cost]
                 SET 
-                    neighborhood_cost_sqm = '{data[0][1]}',
-                    street_cost_sqm = '{data[0][2]}',
-                    build_cost_sqm = '{data[0][3]}',
-                    image_people_type = '{data[0][4]}',
-                    street_people_type = '{data[0][5]}',
-                    neighbourhood_people_type = '{data[0][6]}',
-                    object = '{data[0][7]}',
-                    area_type = '{data[0][8]}',
-                    property_type = '{data[0][9]}',
-                    is_valid = '{data[0][10]}',
+                    neighborhood_cost_sqm = %s,
+                    street_cost_sqm = %s,
+                    build_cost_sqm = %s,
+                    image_people_type = %s,
+                    street_people_type = %s,
+                    neighbourhood_people_type = %s,
+                    object = %s,
+                    area_type = %s,
+                    property_type = %s,
+                    is_valid = %s,
                     modified_date = GETDATE(),
-                    client_neighborhood = '{data[0][11]}',
-                    people_type = '{data[0][12]}'
-                WHERE accountid = {data[0][0]};
+                    client_neighborhood = %s,
+                    people_type = %s
+                WHERE accountid = %s;
             """
-            logger.info(f"🧾 Update Query: {query}")
-            cursor.execute(query)
+
+            params = (
+                data[0][1], data[0][2], data[0][3], data[0][4], data[0][5],
+                data[0][6], data[0][7], data[0][8], data[0][9], data[0][10],
+                data[0][11], data[0][12], data[0][0]
+            )
+
+            logger.info(f"🧾 Update Query Params: {params}")
+            cursor.execute(query, params)
             self.conn.commit()
-            logger.info(f"📝 Updated cost data for account {data[0][0]}")
+            logger.info(f"♻️ Updated cost data for account {data[0][0]}")
         else:
             logger.info(f"➕ Inserting cost data for account {data[0][0]}")
             query = """INSERT INTO [dbo].[client_location_cost] 
