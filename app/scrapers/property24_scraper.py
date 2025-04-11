@@ -20,16 +20,23 @@ class Property24Scraper(BaseScraper):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
             response = self.safe_request(url, headers)
+            fallback_scraper = False
 
             if response is None or response.status_code != 200:
                 logger.info(f"❌ [Property24Scraper] Response invalid or failed. Trying fallback_scraper...")
                 response = fallback_scraper(url)
+                fallback_scraper = True
 
             soup = BeautifulSoup(response.text, 'html.parser')
             cards = soup.select('a.p24_content')
             if response is None or not cards or len(cards) == 0:
                 logger.info(f"❌ [Property24Scraper] Failed to fetch HTML from both sources")
                 return []  # Indicates error to caller
+            else:
+                if not fallback_scraper:
+                    logger.info(f"✅ [Property24Scraper] HTML fetched successfully. No fallback used.")
+                else:
+                    logger.info(f"✅ [Property24Scraper] HTML fetched successfully. fallback_scraper used.")
 
         except Exception as e:
             logger.error(f"❌ [Property24Scraper] Unexpected error: {e}")
